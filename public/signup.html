@@ -105,12 +105,14 @@
             text-align: center;
         }
     </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
     <div class="signup-card">
-        <div class="brand">🎓 CampusSync</div>
-        <div class="subtitle">Create your account to find study partners</div>
+        <a class="auth-home" href="index.html">← CampusSync home</a>
+        <div class="brand">CampusSync</div>
+        <div class="subtitle">Your next great study session starts here.</div>
         
         <form id="signup-form">
             <div class="form-group">
@@ -134,7 +136,7 @@
             </div>
             
             <button type="submit" class="btn">Create Account</button>
-            <div id="error" class="error-msg"></div>
+            <div id="error" class="error-msg" role="status" aria-live="polite"></div>
         </form>
 
         <div class="login-link">
@@ -153,8 +155,11 @@
             const password = document.getElementById('password').value;
             const role = document.getElementById('role').value;
             const errorDiv = document.getElementById('error');
+            const submitButton = e.currentTarget.querySelector('button[type="submit"]');
             
             errorDiv.textContent = '';
+            submitButton.disabled = true;
+            submitButton.textContent = 'Creating your account...';
 
             try {
                 const response = await fetch(`${API_BASE_URL}/auth/signup`, {
@@ -175,6 +180,9 @@
 
             } catch (err) {
                 errorDiv.textContent = err.message;
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Create Account';
             }
         });
     </script>

@@ -262,11 +262,12 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <div class="topbar">
-            <div class="brand">🎓 CampusSync</div>
+            <a class="onboarding-brand" href="dashboard.html">CampusSync</a>
             <div class="header-actions">
                 <button class="btn btn-ghost" type="button" onclick="window.location.href='dashboard.html'">Back to Dashboard</button>
             </div>
@@ -574,6 +575,9 @@
             document.getElementById('course-error').textContent = '';
             document.getElementById('availability-error').textContent = '';
             document.getElementById('availability-success').textContent = '';
+            const saveButton = document.getElementById('save-profile-btn');
+            saveButton.disabled = true;
+            saveButton.textContent = 'Saving your profile...';
 
             try {
                 const coursesSaved = await saveCourseSelection();
@@ -586,6 +590,9 @@
                 }
             } catch (error) {
                 document.getElementById('availability-error').textContent = error.message;
+            } finally {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Save Profile';
             }
         });
 

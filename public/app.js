@@ -91,7 +91,27 @@ function renderMatches(matches) {
     gridContainer.innerHTML = '';
 
     if (!matches || matches.length === 0) {
-        gridContainer.innerHTML = '<p style="color: var(--text-muted); padding: 1rem;">No study partners found yet. Try updating your course selections or check back when more students join!</p>';
+        const emptyState = document.createElement('article');
+        emptyState.className = 'match-empty';
+
+        const illustration = document.createElement('div');
+        illustration.className = 'match-empty-mark';
+        illustration.setAttribute('aria-hidden', 'true');
+        illustration.textContent = '✦';
+
+        const heading = document.createElement('h2');
+        heading.textContent = 'Your study circle starts here';
+
+        const description = document.createElement('p');
+        description.textContent = 'We’ll show you coursemates and tutors as soon as we find a shared course and study time. Make sure your profile is up to date to get the best matches.';
+
+        const action = document.createElement('a');
+        action.className = 'btn btn-primary';
+        action.href = 'onboarding.html';
+        action.textContent = 'Review courses & availability';
+
+        emptyState.append(illustration, heading, description, action);
+        gridContainer.appendChild(emptyState);
         return;
     }
 

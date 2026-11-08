@@ -81,11 +81,14 @@
             text-align: center;
         }
     </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
     <div class="login-card">
-        <div class="brand">🎓 CampusSync</div>
+        <a class="auth-home" href="index.html">← CampusSync home</a>
+        <div class="brand">CampusSync</div>
+        <p class="subtitle">A little more focus. A lot more together.</p>
         <form id="login-form">
             <div class="form-group">
                 <label for="email">Campus Email</label>
@@ -96,7 +99,7 @@
                 <input type="password" id="password" required placeholder="••••••••">
             </div>
             <button type="submit" class="btn">Sign In to Dashboard</button>
-            <div id="error" class="error-msg"></div>
+            <div id="error" class="error-msg" role="status" aria-live="polite"></div>
         </form>
     </div>
 
@@ -108,7 +111,10 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('error');
+            const submitButton = e.currentTarget.querySelector('button[type="submit"]');
             errorDiv.textContent = '';
+            submitButton.disabled = true;
+            submitButton.textContent = 'Signing you in...';
 
             try {
                 const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -129,6 +135,9 @@
 
             } catch (err) {
                 errorDiv.textContent = err.message;
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Sign In to Dashboard';
             }
         });
     </script>
