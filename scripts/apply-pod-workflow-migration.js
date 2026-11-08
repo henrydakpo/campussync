@@ -6,7 +6,8 @@ const pool = require('../config/db');
 async function applyPodWorkflowMigrations() {
     const migrationPaths = [
         path.join(__dirname, '..', 'migrations', '002_pod_requests_meetups.sql'),
-        path.join(__dirname, '..', 'migrations', '003_pod_chat_messages.sql')
+        path.join(__dirname, '..', 'migrations', '003_pod_chat_messages.sql'),
+        path.join(__dirname, '..', 'migrations', '004_universities.sql')
     ];
     const client = await pool.connect();
 
@@ -20,7 +21,7 @@ async function applyPodWorkflowMigrations() {
         }
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('Failed to apply pod workflow database migrations:', error);
+        console.error('Failed to apply database migrations:', error);
         process.exitCode = 1;
     } finally {
         client.release();
@@ -29,7 +30,7 @@ async function applyPodWorkflowMigrations() {
 }
 
 applyPodWorkflowMigrations().catch(async error => {
-    console.error('Failed to start pod workflow database migrations:', error);
+    console.error('Failed to start database migrations:', error);
     await pool.end();
     process.exitCode = 1;
 });

@@ -707,6 +707,17 @@ body:has(.nav-links) .btn-primary:hover:not(:disabled) { background: #374c3d; }
 .schedule-slot { background: #f5f1e8; color: #7b8176; }
 .schedule-slot.available { background: #e8f1e4; color: #496b4c; }
 .catalog-controls input, .catalog-controls select { border-color: #e3ddcf; border-radius: 10px; }
+.course-match-panel { display: grid; gap: 0.8rem; margin-bottom: 1.5rem; padding: 1.1rem; border: 1px solid #e8e0d1; border-radius: 16px; background: rgba(255, 253, 248, 0.8); }
+.course-match-panel h2 { color: #405543; font-size: 1.05rem; }
+.course-match-disclosure { color: #788075; font-size: 0.8rem; line-height: 1.55; }
+.course-match-form { display: grid; gap: 0.7rem; }
+.course-match-form label { display: grid; gap: 0.35rem; color: #687365; font-size: 0.8rem; font-weight: 650; }
+.course-match-form input, .course-match-form textarea { width: 100%; min-width: 0; padding: 0.65rem 0.75rem; border: 1px solid #e3ddcf; border-radius: 10px; background: #fffefa; color: var(--text-main); }
+.course-match-form textarea { resize: vertical; }
+.course-match-form .btn { justify-self: start; flex: initial; }
+.course-match-summary { display: grid; gap: 0.35rem; padding: 0.8rem; border-radius: 12px; background: #edf0e7; color: #52634f; }
+.course-match-summary h3 { font-size: 0.95rem; }
+.course-match-summary p, .course-match-reason { margin: 0; color: #687365; font-size: 0.8rem; line-height: 1.5; }
 .catalog-controls input:focus, .catalog-controls select:focus { border-color: #81947c; box-shadow: 0 0 0 4px rgba(73, 98, 78, 0.09); outline: none; }
 .settings-form label { color: #536050; }
 .settings-form input, .settings-form select { border-color: #e3ddcf; border-radius: 10px; }

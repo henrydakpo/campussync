@@ -147,6 +147,12 @@
                 <input type="email" id="email" required placeholder="student@st.ug.edu.gh">
             </div>
             <div class="form-group">
+                <label for="university-select">University</label>
+                <select id="university-select" name="university_id" required disabled>
+                    <option value="">Loading universities...</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <label for="password">Password</label>
                 <div class="password-input-wrap">
                     <input type="password" id="password" required placeholder="At least 6 characters" autocomplete="new-password">
@@ -172,6 +178,53 @@
 
     <script>
         const API_BASE_URL = '/api';
+        const universitySelect = document.getElementById('university-select');
+        const signupButton = document.querySelector('#signup-form button[type="submit"]');
+        signupButton.disabled = true;
+
+        async function loadUniversities() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/universities`);
+                const data = await response.json();
+                if (!response.ok || !data.success || !Array.isArray(data.universities)) {
+                    throw new Error(data.error || 'Failed to load universities.');
+                }
+
+                universitySelect.replaceChildren();
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select your university';
+                placeholder.disabled = true;
+                placeholder.selected = true;
+                universitySelect.appendChild(placeholder);
+
+                data.universities.forEach(university => {
+                    const option = document.createElement('option');
+                    option.value = university.id;
+                    option.textContent = `${university.name} (${university.short_code})`;
+                    option.selected = university.short_code === 'UG';
+                    universitySelect.appendChild(option);
+                });
+                universitySelect.disabled = false;
+                signupButton.disabled = false;
+                if (!data.universities.some(university => university.short_code === 'UG')) {
+                    throw new Error('University of Ghana is missing from the university list.');
+                }
+            } catch (error) {
+                console.error('Failed to load universities:', error);
+                universitySelect.replaceChildren();
+                const unavailable = document.createElement('option');
+                unavailable.value = '';
+                unavailable.textContent = 'Universities could not be loaded. Refresh to try again.';
+                unavailable.selected = true;
+                universitySelect.appendChild(unavailable);
+                universitySelect.disabled = true;
+                signupButton.disabled = true;
+                document.getElementById('error').textContent = error.message;
+            }
+        }
+
+        loadUniversities();
 
         document.querySelectorAll('.password-toggle').forEach(button => {
             button.addEventListener('click', () => {
@@ -191,6 +244,7 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const role = document.getElementById('role').value;
+            const university_id = universitySelect.value;
             const errorDiv = document.getElementById('error');
             const submitButton = e.currentTarget.querySelector('button[type="submit"]');
             
@@ -202,7 +256,7 @@
                 const response = await fetch(`${API_BASE_URL}/auth/signup`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fullName, email, password, role })
+                    body: JSON.stringify({ fullName, email, password, role, university_id })
                 });
 
                 const data = await response.json();

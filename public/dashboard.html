@@ -552,7 +552,7 @@
             </ul>
         </div>
         <div class="sidebar-footer">
-            University of Ghana Hub
+            Ghana University Study Network
         </div>
     </aside>
 
@@ -642,6 +642,23 @@
             </section>
 
             <section id="catalog-view" class="hidden">
+                <section class="course-match-panel" aria-labelledby="course-match-title">
+                    <h2 id="course-match-title">Find study pods for an equivalent course</h2>
+                    <p class="course-match-disclosure">AI suggestions can be imperfect. Review course details before requesting to join. Your course title and description are sent to Google Gemini; do not include personal or sensitive information.</p>
+                    <form id="course-match-form" class="course-match-form">
+                        <label for="course-match-title-input">Course title
+                            <input id="course-match-title-input" name="courseTitle" type="text" maxlength="200" required placeholder="e.g. Introduction to Organizational Psychology">
+                        </label>
+                        <label for="course-match-description">Description or topics (optional)
+                            <textarea id="course-match-description" name="courseDescription" maxlength="2000" rows="3" placeholder="Add a short description or key topics to improve suggestions."></textarea>
+                        </label>
+                        <button class="btn btn-primary" type="submit">Find equivalent courses</button>
+                    </form>
+                    <p id="course-match-status" class="pod-message" aria-live="polite"></p>
+                    <div id="course-match-summary" class="course-match-summary hidden"></div>
+                    <p id="course-match-pods-message" class="pod-message" aria-live="polite"></p>
+                    <div id="course-match-pods-container" class="pods-grid" aria-live="polite"></div>
+                </section>
                 <div class="catalog-controls">
                     <input id="catalog-search" type="search" placeholder="Search course code or title" aria-label="Search courses">
                     <select id="catalog-department" aria-label="Filter by department">

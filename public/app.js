@@ -575,6 +575,13 @@ function renderDiscoverablePods(pods, containerId, messageId) {
         members.textContent = `Members: ${pod.current_members_count} / ${pod.max_members}`;
         const actions = document.createElement('div');
         actions.className = 'pod-actions';
+        const campuses = document.createElement('p');
+        campuses.textContent = pod.campuses && pod.campuses.length
+            ? `Campuses represented: ${pod.campuses.join(', ')}`
+            : 'Campus information unavailable';
+        const reason = document.createElement('p');
+        reason.className = 'course-match-reason';
+        reason.textContent = pod.match_reason ? `Suggested because: ${pod.match_reason}` : '';
 
         if (pod.is_creator || pod.is_member) {
             const badge = document.createElement('span');
@@ -604,9 +611,62 @@ function renderDiscoverablePods(pods, containerId, messageId) {
             actions.appendChild(requestButton);
         }
 
-        card.append(title, course, organizer, members, actions);
+        card.append(title, course, organizer, members);
+        if (containerId === 'course-match-pods-container') card.append(campuses, reason);
+        card.append(actions);
         container.appendChild(card);
     });
+}
+
+async function findEquivalentCoursePods(form) {
+    const status = document.getElementById('course-match-status');
+    const summary = document.getElementById('course-match-summary');
+    const submit = form.querySelector('button[type="submit"]');
+    const podsMessage = document.getElementById('course-match-pods-message');
+    summary.replaceChildren();
+    summary.classList.add('hidden');
+    document.getElementById('course-match-pods-container').replaceChildren();
+    status.classList.remove('error');
+    status.textContent = 'Checking course equivalencies...';
+    podsMessage.textContent = '';
+    submit.disabled = true;
+
+    try {
+        const formData = new FormData(form);
+        const response = await fetch(`${API_BASE_URL}/ai/match-course`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                courseTitle: formData.get('courseTitle'),
+                courseDescription: formData.get('courseDescription')
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to find equivalent courses.');
+
+        const title = document.createElement('h3');
+        title.textContent = data.normalized.standardCourseName;
+        const discipline = document.createElement('p');
+        discipline.textContent = `Discipline: ${data.normalized.discipline}`;
+        const topics = document.createElement('p');
+        topics.textContent = `Core topics: ${data.normalized.coreTopics.join(', ')}`;
+        summary.append(title, discipline, topics);
+        summary.classList.remove('hidden');
+
+        if (data.pods.length) {
+            status.textContent = 'These are AI-suggested equivalents, not verified course equivalencies.';
+            renderDiscoverablePods(data.pods, 'course-match-pods-container', 'course-match-pods-message');
+        } else {
+            status.textContent = 'No existing study pods were found for a strongly equivalent course. The normalized title is a suggestion, not a confirmed equivalency.';
+            podsMessage.textContent = '';
+        }
+    } catch (error) {
+        console.error('Error finding equivalent course pods:', error);
+        status.textContent = error.message;
+        status.classList.add('error');
+    } finally {
+        submit.disabled = false;
+    }
 }
 
 async function joinStudyPod(podId, feedbackElement = document.getElementById('pods-message')) {
@@ -1162,6 +1222,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('catalog-search').addEventListener('input', renderCourseCatalog);
     document.getElementById('catalog-department').addEventListener('change', renderCourseCatalog);
+    document.getElementById('course-match-form').addEventListener('submit', event => {
+        event.preventDefault();
+        findEquivalentCoursePods(event.currentTarget);
+    });
 
     document.getElementById('create-pod-form').addEventListener('submit', async event => {
         event.preventDefault();
