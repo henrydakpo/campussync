@@ -18,7 +18,7 @@ async function getStudentMatches(req, res) {
 
         const courseIds = userCoursesResult.rows.map(row => row.course_id);
 
-        // 2. Find other users learning or teaching the same courses, and calculate overlapping availability
+        // Shared courses make students discoverable; overlapping availability improves ranking.
         const matchQuery = `
             SELECT 
                 u.id AS user_id,
@@ -28,17 +28,22 @@ async function getStudentMatches(req, res) {
                 c.course_code,
                 c.course_title,
                 uc.status AS course_status,
-                ARRAY_AGG(a.time_slot_code) AS overlapping_slots,
-                COUNT(a.time_slot_code) AS overlapping_slots_count
+                COALESCE(
+                    ARRAY_AGG(DISTINCT a.time_slot_code)
+                        FILTER (WHERE a.time_slot_code IS NOT NULL),
+                    ARRAY[]::text[]
+                ) AS overlapping_slots,
+                COUNT(DISTINCT a.time_slot_code)::int AS overlapping_slots_count
             FROM user_courses uc
             JOIN users u ON uc.user_id = u.id
             JOIN courses c ON uc.course_id = c.id
-            JOIN availabilities a ON u.id = a.user_id
+            LEFT JOIN availabilities a
+                ON a.user_id = u.id
+               AND a.time_slot_code IN (
+                   SELECT time_slot_code FROM availabilities WHERE user_id = $2
+               )
             WHERE uc.course_id = ANY($1)
               AND u.id != $2
-              AND a.time_slot_code IN (
-                  SELECT time_slot_code FROM availabilities WHERE user_id = $2
-              )
             GROUP BY u.id, u.full_name, u.role, c.id, c.course_code, c.course_title, uc.status
             ORDER BY overlapping_slots_count DESC;
         `;
@@ -69,7 +74,7 @@ async function getStudentMatches(req, res) {
 
     } catch (err) {
         console.error("Error fetching matches:", err);
-        res.status(500).json({ error: "Failed to compute study matches." });
+        return res.status(500).json({ error: "Failed to compute study matches." });
     }
 }
 

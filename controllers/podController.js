@@ -67,6 +67,7 @@ async function discoverStudyPods(req, res) {
                 c.id AS course_id,
                 c.course_code,
                 c.course_title,
+                c.department,
                 u.full_name AS creator_name,
                 COUNT(pm.user_id)::int AS current_members_count,
                 COALESCE(BOOL_OR(pm.user_id = $1), FALSE) AS is_member,

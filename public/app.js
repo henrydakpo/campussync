@@ -91,9 +91,12 @@ async function loadMatches() {
 }
 
 // 2. Render Match Cards Dynamically into DOM
+let matchProfiles = new Map();
+
 function renderMatches(matches) {
     const gridContainer = document.querySelector('.matches-grid');
     gridContainer.innerHTML = '';
+    matchProfiles = new Map((matches || []).map(match => [match.userId, match]));
 
     if (!matches || matches.length === 0) {
         const emptyState = document.createElement('article');
@@ -108,7 +111,7 @@ function renderMatches(matches) {
         heading.textContent = 'Your study circle starts here';
 
         const description = document.createElement('p');
-        description.textContent = 'We’ll show you coursemates and tutors as soon as we find a shared course and study time. Make sure your profile is up to date to get the best matches.';
+        description.textContent = 'We’ll show you coursemates and tutors who share your courses. Adding your free time helps us put the most compatible partners first.';
 
         const action = document.createElement('a');
         action.className = 'btn btn-primary';
@@ -130,9 +133,10 @@ function renderMatches(matches) {
             .substring(0, 2);
 
         // Format slots text
-        const slotsText = match.overlappingSlots && match.overlappingSlots.length > 0
-            ? match.overlappingSlots.map(slot => `• ${slot.replace('_', ' ')}`).join('<br>')
-            : '• Flexible hours';
+        const hasOverlappingSlots = match.overlappingSlots && match.overlappingSlots.length > 0;
+        const slotsText = hasOverlappingSlots
+            ? match.overlappingSlots.map(slot => `• ${slot.replace(/_/g, ' ')}`).join('<br>')
+            : 'No shared time found yet';
 
         const cardHTML = `
             <div class="match-card" data-user-id="${match.userId}">
@@ -149,8 +153,8 @@ function renderMatches(matches) {
                 <div>
                     <span class="course-tag">${match.courseCode} • ${match.courseTitle}</span>
                     <div class="slots-section">
-                        <strong>Overlapping Free Time:</strong><br>
-                        ${slotsText} (${match.overlappingSlotsCount} slots)
+                        <strong>Shared Free Time:</strong><br>
+                        ${slotsText}${hasOverlappingSlots ? ` (${match.overlappingSlotsCount} slots)` : ''}
                     </div>
                 </div>
                 <div class="card-actions">
@@ -432,61 +436,87 @@ async function loadDiscoverablePods(containerId, messageId) {
         }
 
         const pods = data.pods || [];
-        message.textContent = pods.length
-            ? ''
-            : 'No study pods have been created yet. Start one for a course you enjoy.';
-
-        pods.forEach(pod => {
-            const card = document.createElement('article');
-            card.className = 'pod-card';
-
-            const title = document.createElement('h2');
-            title.textContent = pod.pod_name;
-            const course = document.createElement('p');
-            course.textContent = `${pod.course_code} — ${pod.course_title}`;
-            const organizer = document.createElement('p');
-            organizer.textContent = `Organizer: ${pod.creator_name || 'CampusSync student'}`;
-            const members = document.createElement('p');
-            members.textContent = `Members: ${pod.current_members_count} / ${pod.max_members}`;
-            const actions = document.createElement('div');
-            actions.className = 'pod-actions';
-
-            if (pod.is_creator || pod.is_member) {
-                const badge = document.createElement('span');
-                badge.className = 'joined-badge';
-                badge.textContent = pod.is_creator ? 'Your pod' : 'Joined';
-                actions.appendChild(badge);
-
-                const viewButton = document.createElement('button');
-                viewButton.type = 'button';
-                viewButton.className = 'btn btn-outline';
-                viewButton.textContent = 'View pod';
-                viewButton.addEventListener('click', () => openStudyPod(pod.pod_id));
-                actions.appendChild(viewButton);
-            } else {
-                const requestButton = document.createElement('button');
-                requestButton.type = 'button';
-                requestButton.className = 'btn btn-primary';
-                requestButton.textContent = pod.is_full
-                    ? 'Full'
-                    : pod.request_status === 'pending'
-                        ? 'Request pending'
-                        : pod.request_status === 'rejected'
-                            ? 'Request again'
-                            : 'Request to join';
-                requestButton.disabled = pod.is_full || pod.request_status === 'pending';
-                requestButton.addEventListener('click', () => joinStudyPod(pod.pod_id, message));
-                actions.appendChild(requestButton);
-            }
-
-            card.append(title, course, organizer, members, actions);
-            container.appendChild(card);
-        });
+        if (containerId === 'catalog-pods-container') {
+            catalogPods = pods;
+            catalogPodsLoaded = true;
+        }
+        renderDiscoverablePods(pods, containerId, messageId);
     } catch (err) {
         console.error('Error discovering study pods:', err);
         message.textContent = err.message;
         message.classList.add('error');
     }
+}
+
+function renderDiscoverablePods(pods, containerId, messageId) {
+    const container = document.getElementById(containerId);
+    const message = document.getElementById(messageId);
+    if (!container || !message) return;
+
+    let visiblePods = pods;
+    if (containerId === 'catalog-pods-container') {
+        const search = document.getElementById('catalog-search').value.trim().toLowerCase();
+        const department = document.getElementById('catalog-department').value;
+        visiblePods = pods.filter(pod => {
+            const matchesText = `${pod.course_code} ${pod.course_title} ${pod.department}`.toLowerCase().includes(search);
+            return matchesText && (!department || pod.department === department);
+        });
+    }
+
+    container.replaceChildren();
+    message.classList.remove('error');
+    message.textContent = visiblePods.length
+        ? ''
+        : pods.length
+            ? 'No study pods match this course search or department.'
+            : 'No study pods have been created yet. Start one for a course you enjoy.';
+
+    visiblePods.forEach(pod => {
+        const card = document.createElement('article');
+        card.className = 'pod-card';
+
+        const title = document.createElement('h2');
+        title.textContent = pod.pod_name;
+        const course = document.createElement('p');
+        course.textContent = `${pod.course_code} — ${pod.course_title}`;
+        const organizer = document.createElement('p');
+        organizer.textContent = `Organizer: ${pod.creator_name || 'CampusSync student'}`;
+        const members = document.createElement('p');
+        members.textContent = `Members: ${pod.current_members_count} / ${pod.max_members}`;
+        const actions = document.createElement('div');
+        actions.className = 'pod-actions';
+
+        if (pod.is_creator || pod.is_member) {
+            const badge = document.createElement('span');
+            badge.className = 'joined-badge';
+            badge.textContent = pod.is_creator ? 'Your pod' : 'Joined';
+            actions.appendChild(badge);
+
+            const viewButton = document.createElement('button');
+            viewButton.type = 'button';
+            viewButton.className = 'btn btn-outline';
+            viewButton.textContent = 'View pod';
+            viewButton.addEventListener('click', () => openStudyPod(pod.pod_id));
+            actions.appendChild(viewButton);
+        } else {
+            const requestButton = document.createElement('button');
+            requestButton.type = 'button';
+            requestButton.className = 'btn btn-primary';
+            requestButton.textContent = pod.is_full
+                ? 'Full'
+                : pod.request_status === 'pending'
+                    ? 'Request pending'
+                    : pod.request_status === 'rejected'
+                        ? 'Request again'
+                        : 'Request to join';
+            requestButton.disabled = pod.is_full || pod.request_status === 'pending';
+            requestButton.addEventListener('click', () => joinStudyPod(pod.pod_id, message));
+            actions.appendChild(requestButton);
+        }
+
+        card.append(title, course, organizer, members, actions);
+        container.appendChild(card);
+    });
 }
 
 async function joinStudyPod(podId, feedbackElement = document.getElementById('pods-message')) {
@@ -717,6 +747,8 @@ async function loadStudentSchedule() {
 }
 
 let catalogCourses = [];
+let catalogPods = [];
+let catalogPodsLoaded = false;
 
 function renderCourseCatalog() {
     const grid = document.getElementById('catalog-grid');
@@ -747,6 +779,10 @@ function renderCourseCatalog() {
     message.textContent = filteredCourses.length
         ? `${filteredCourses.length} course${filteredCourses.length === 1 ? '' : 's'}`
         : 'No courses match your search.';
+
+    if (catalogPodsLoaded) {
+        renderDiscoverablePods(catalogPods, 'catalog-pods-container', 'catalog-pods-message');
+    }
 }
 
 async function loadFullCourseCatalog() {
@@ -869,14 +905,30 @@ async function openStudyPod(podId) {
     window.setTimeout(() => podCard.classList.remove('pod-card-highlight'), 2200);
 }
 
-// Stub for viewing profile
 function viewProfile(userId) {
-    alert(`Viewing profile details for user ID: ${userId}`);
+    const profile = matchProfiles.get(userId);
+    if (!profile) return;
+
+    document.getElementById('match-profile-name').textContent = profile.fullName;
+    document.getElementById('match-profile-role').textContent = profile.role === 'peer_tutor'
+        ? 'Peer Tutor'
+        : profile.role === 'both'
+            ? 'Student and Peer Tutor'
+            : 'Student Seeking Help';
+    document.getElementById('match-profile-course').textContent = `${profile.courseCode} — ${profile.courseTitle}`;
+    const slots = profile.overlappingSlots || [];
+    document.getElementById('match-profile-availability').textContent = slots.length
+        ? slots.map(slot => slot.replace(/_/g, ' ')).join(', ')
+        : 'No shared free-time slots found yet.';
+    document.getElementById('match-profile-dialog').showModal();
 }
 
 // Run when dashboard loads
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logout-button').addEventListener('click', logout);
+    document.getElementById('match-profile-close').addEventListener('click', () => {
+        document.getElementById('match-profile-dialog').close();
+    });
     document.querySelectorAll('.password-toggle').forEach(button => {
         button.addEventListener('click', () => {
             const passwordInput = document.getElementById(button.getAttribute('aria-controls'));
