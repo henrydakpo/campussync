@@ -381,6 +381,47 @@ async function loadStudyPods() {
                 chatSection.append(chatHeading, chatToggle, chatPanel);
                 card.appendChild(chatSection);
 
+                const aiSection = document.createElement('section');
+                aiSection.className = 'pod-ai-section';
+                const aiHeading = document.createElement('h3');
+                aiHeading.textContent = 'CampusSync AI Study Copilot';
+                const aiDescription = document.createElement('p');
+                aiDescription.className = 'pod-ai-privacy';
+                aiDescription.textContent = 'Your request and notes are sent to Google Gemini to generate a response. Avoid sharing personal or sensitive information.';
+                const aiForm = document.createElement('form');
+                aiForm.className = 'pod-ai-form';
+                aiForm.dataset.podId = pod.pod_id;
+                const promptLabel = document.createElement('label');
+                promptLabel.textContent = 'What would you like help with?';
+                const promptInput = document.createElement('textarea');
+                promptInput.name = 'prompt';
+                promptInput.rows = 2;
+                promptInput.maxLength = 1000;
+                promptInput.required = true;
+                promptInput.placeholder = 'e.g. Explain central tendency or generate 3 practice questions.';
+                promptLabel.appendChild(promptInput);
+                const notesLabel = document.createElement('label');
+                notesLabel.textContent = 'Study notes (optional)';
+                const notesInput = document.createElement('textarea');
+                notesInput.name = 'notes';
+                notesInput.rows = 3;
+                notesInput.maxLength = 12000;
+                notesInput.placeholder = 'Paste notes for the Copilot to summarize or use in its answer.';
+                notesLabel.appendChild(notesInput);
+                const aiSubmit = document.createElement('button');
+                aiSubmit.type = 'submit';
+                aiSubmit.className = 'btn btn-primary';
+                aiSubmit.textContent = 'Ask AI Copilot';
+                const aiStatus = document.createElement('p');
+                aiStatus.className = 'pod-ai-status';
+                aiStatus.setAttribute('aria-live', 'polite');
+                const aiResponse = document.createElement('pre');
+                aiResponse.className = 'pod-ai-response hidden';
+                aiResponse.setAttribute('aria-live', 'polite');
+                aiForm.append(promptLabel, notesLabel, aiSubmit);
+                aiSection.append(aiHeading, aiDescription, aiForm, aiStatus, aiResponse);
+                card.appendChild(aiSection);
+
                 const meetupSection = document.createElement('section');
                 meetupSection.className = 'pod-meetup-section';
                 const meetupHeading = document.createElement('h3');
@@ -1157,6 +1198,40 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('pods-container').addEventListener('submit', async event => {
+        const aiForm = event.target.closest('.pod-ai-form');
+        if (aiForm) {
+            event.preventDefault();
+            const promptInput = aiForm.elements.prompt;
+            const notesInput = aiForm.elements.notes;
+            const submitButton = aiForm.querySelector('button[type="submit"]');
+            const status = aiForm.parentElement.querySelector('.pod-ai-status');
+            const responseBox = aiForm.parentElement.querySelector('.pod-ai-response');
+            responseBox.classList.remove('hidden', 'error');
+            responseBox.textContent = '';
+            status.textContent = 'AI Copilot is preparing a response...';
+            submitButton.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(aiForm.dataset.podId)}/ai-helper`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ prompt: promptInput.value.trim(), notes: notesInput.value.trim() })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to generate AI response.');
+                responseBox.textContent = data.aiResponse;
+                status.textContent = 'Check important details against your course materials.';
+            } catch (error) {
+                console.error('Error requesting AI study help:', error);
+                responseBox.classList.add('error');
+                responseBox.textContent = error.message;
+                status.textContent = '';
+            } finally {
+                submitButton.disabled = false;
+            }
+            return;
+        }
+
         const chatForm = event.target.closest('.pod-chat-form');
         if (chatForm) {
             event.preventDefault();

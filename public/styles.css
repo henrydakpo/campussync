@@ -691,6 +691,16 @@ body:has(.nav-links) .btn-primary:hover:not(:disabled) { background: #374c3d; }
 .pod-chat-form textarea { flex: 1; min-width: 0; resize: vertical; padding: 0.65rem 0.75rem; border: 1px solid #e3ddcf; border-radius: 10px; background: #fffefa; color: var(--text-main); }
 .pod-chat-form textarea:focus { border-color: #81947c; box-shadow: 0 0 0 3px rgba(73, 98, 78, 0.08); outline: none; }
 .pod-chat-form .btn { flex: initial; align-self: flex-end; }
+.pod-ai-section { display: grid; gap: 0.65rem; margin-top: 0.4rem; padding-top: 1rem; border-top: 1px solid #e8e1d5; }
+.pod-ai-section h3 { color: #52634f; font-size: 0.95rem; }
+.pod-ai-privacy, .pod-ai-status { margin: 0; color: #788075; font-size: 0.78rem; line-height: 1.5; }
+.pod-ai-form { display: grid; gap: 0.65rem; }
+.pod-ai-form label { display: grid; gap: 0.35rem; color: #687365; font-size: 0.78rem; font-weight: 650; }
+.pod-ai-form textarea { width: 100%; min-width: 0; resize: vertical; padding: 0.65rem 0.75rem; border: 1px solid #e3ddcf; border-radius: 10px; background: #fffefa; color: var(--text-main); }
+.pod-ai-form textarea:focus { border-color: #81947c; box-shadow: 0 0 0 3px rgba(73, 98, 78, 0.08); outline: none; }
+.pod-ai-form .btn { justify-self: start; flex: initial; }
+.pod-ai-response { max-height: 24rem; overflow: auto; margin: 0; padding: 0.85rem; border: 1px solid #e8e1d5; border-radius: 12px; background: #faf7ef; color: #38443a; font: inherit; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pod-ai-response.error { color: #a64e40; }
 .pod-meetup-card .btn { justify-self: start; flex: initial; margin-top: 0.25rem; }
 .pod-meetup-status.error { color: #a64e40; }
 
