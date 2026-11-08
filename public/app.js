@@ -877,6 +877,17 @@ function viewProfile(userId) {
 // Run when dashboard loads
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logout-button').addEventListener('click', logout);
+    document.querySelectorAll('.password-toggle').forEach(button => {
+        button.addEventListener('click', () => {
+            const passwordInput = document.getElementById(button.getAttribute('aria-controls'));
+            const isVisible = passwordInput.type === 'text';
+            passwordInput.type = isVisible ? 'password' : 'text';
+            button.textContent = isVisible ? 'Show' : 'Hide';
+            const fieldName = button.getAttribute('aria-label').replace(/^(show|hide)\s+/i, '');
+            button.setAttribute('aria-label', `${isVisible ? 'Show' : 'Hide'} ${fieldName}`);
+            button.setAttribute('aria-pressed', String(!isVisible));
+        });
+    });
     loadMatches();
 
     document.querySelectorAll('[data-dashboard-view]').forEach(link => {

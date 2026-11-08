@@ -69,6 +69,29 @@
         input:focus, select:focus {
             border-color: var(--primary);
         }
+        .password-input-wrap {
+            position: relative;
+        }
+        .password-input-wrap input {
+            padding-right: 5rem;
+        }
+        .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 0.65rem;
+            transform: translateY(-50%);
+            padding: 0.35rem 0.45rem;
+            border: 0;
+            border-radius: 0.35rem;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .password-toggle:hover {
+            color: var(--primary);
+        }
         .btn {
             width: 100%;
             padding: 0.75rem;
@@ -125,7 +148,10 @@
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" required placeholder="At least 6 characters">
+                <div class="password-input-wrap">
+                    <input type="password" id="password" required placeholder="At least 6 characters" autocomplete="new-password">
+                    <button class="password-toggle" type="button" aria-controls="password" aria-label="Show password" aria-pressed="false">Show</button>
+                </div>
             </div>
             <div class="form-group">
                 <label for="role">Primary Goal</label>
@@ -146,6 +172,17 @@
 
     <script>
         const API_BASE_URL = 'http://localhost:5000/api';
+
+        document.querySelectorAll('.password-toggle').forEach(button => {
+            button.addEventListener('click', () => {
+                const passwordInput = document.getElementById(button.getAttribute('aria-controls'));
+                const isVisible = passwordInput.type === 'text';
+                passwordInput.type = isVisible ? 'password' : 'text';
+                button.textContent = isVisible ? 'Show' : 'Hide';
+                button.setAttribute('aria-label', isVisible ? 'Show password' : 'Hide password');
+                button.setAttribute('aria-pressed', String(!isVisible));
+            });
+        });
 
         document.getElementById('signup-form').addEventListener('submit', async (e) => {
             e.preventDefault();
