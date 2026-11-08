@@ -4,6 +4,7 @@ const {
     getAvailablePods,
     discoverStudyPods,
     createStudyPod,
+    deleteStudyPod,
     requestToJoinStudyPod,
     getMembershipRequests,
     respondToMembershipRequest,
@@ -16,6 +17,7 @@ const verifyToken = require('../middleware/authMiddleware');
 router.get('/', verifyToken, getAvailablePods);
 router.get('/discover', verifyToken, discoverStudyPods);
 router.post('/', verifyToken, createStudyPod);
+router.delete('/:podId', verifyToken, deleteStudyPod);
 router.get('/:podId/requests', verifyToken, getMembershipRequests);
 router.patch('/:podId/requests/:requestId', verifyToken, respondToMembershipRequest);
 router.get('/:podId/meetups', verifyToken, getPodMeetups);

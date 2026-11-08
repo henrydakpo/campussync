@@ -291,6 +291,13 @@ async function loadStudyPods() {
                     requestsButton.className = 'btn btn-outline';
                     requestsButton.textContent = `Membership requests${pod.pending_requests_count ? ` (${pod.pending_requests_count})` : ''}`;
                     actions.appendChild(requestsButton);
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.type = 'button';
+                    deleteButton.className = 'btn btn-outline pod-delete-button';
+                    deleteButton.textContent = 'Delete pod';
+                    deleteButton.addEventListener('click', () => deleteStudyPod(pod.pod_id, pod.pod_name));
+                    actions.appendChild(deleteButton);
                 }
             } else {
                 const joinButton = document.createElement('button');
@@ -367,6 +374,39 @@ async function loadStudyPods() {
         });
     } catch (err) {
         console.error('Error loading study pods:', err);
+        message.textContent = err.message;
+        message.classList.add('error');
+    }
+}
+
+async function deleteStudyPod(podId, podName) {
+    if (!window.confirm(`Delete "${podName}"? This will permanently remove its membership requests, members, and meetups.`)) {
+        return;
+    }
+
+    const message = document.getElementById('pods-message');
+    message.textContent = 'Deleting study pod...';
+    message.classList.remove('error');
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(podId)}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to delete study pod');
+        }
+
+        message.textContent = data.message;
+        await Promise.all([
+            loadStudyPods(),
+            loadDiscoverablePods('matches-pods-container', 'matches-pods-message'),
+            loadDiscoverablePods('catalog-pods-container', 'catalog-pods-message')
+        ]);
+        message.textContent = data.message;
+    } catch (err) {
+        console.error('Error deleting study pod:', err);
         message.textContent = err.message;
         message.classList.add('error');
     }

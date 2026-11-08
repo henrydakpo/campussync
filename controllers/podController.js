@@ -25,10 +25,11 @@ async function getAvailablePods(req, res) {
                  WHERE pending.pod_id = p.id AND pending.status = 'pending') AS pending_requests_count
              FROM study_pods p
              JOIN courses c ON c.id = p.course_id
-             JOIN user_courses uc ON uc.course_id = c.id AND uc.user_id = $1
+             LEFT JOIN user_courses uc ON uc.course_id = c.id AND uc.user_id = $1
              LEFT JOIN users u ON u.id = p.created_by
              LEFT JOIN pod_members pm ON pm.pod_id = p.id
              LEFT JOIN pod_membership_requests pr ON pr.pod_id = p.id AND pr.user_id = $1
+             WHERE uc.user_id = $1 OR p.created_by = $1
              GROUP BY p.id, c.id, u.full_name
              ORDER BY p.created_at DESC`,
             [userId]
@@ -143,6 +144,30 @@ async function createStudyPod(req, res) {
         return res.status(500).json({ error: "Failed to create study pod." });
     } finally {
         client.release();
+    }
+}
+
+async function deleteStudyPod(req, res) {
+    const userId = req.user.id;
+    const { podId } = req.params;
+
+    if (!UUID_PATTERN.test(podId)) {
+        return res.status(400).json({ error: "A valid study pod ID is required." });
+    }
+
+    try {
+        const result = await pool.query(
+            'DELETE FROM study_pods WHERE id = $1 AND created_by = $2 RETURNING id',
+            [podId, userId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Study pod not found or you are not its organizer." });
+        }
+
+        return res.json({ success: true, message: "Study pod deleted." });
+    } catch (err) {
+        console.error("Error deleting study pod:", err);
+        return res.status(500).json({ error: "Failed to delete study pod." });
     }
 }
 
@@ -485,6 +510,7 @@ module.exports = {
     getAvailablePods,
     discoverStudyPods,
     createStudyPod,
+    deleteStudyPod,
     requestToJoinStudyPod,
     getMembershipRequests,
     respondToMembershipRequest,
