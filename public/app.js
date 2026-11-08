@@ -215,8 +215,8 @@ async function loadPodCourses() {
         courseSelect.replaceChildren();
         const courses = data.courses || [];
         if (courses.length === 0) {
-            courseSelect.add(new Option('Add courses to your profile first', ''));
-            message.textContent = 'Add at least one course in your profile before creating or joining course study pods.';
+            courseSelect.add(new Option('Add a course to create your own pod', ''));
+            message.textContent = 'Add a course to create a pod. You can still discover and request to join pods from Find Matches or Course Catalog.';
             return;
         }
 
@@ -261,6 +261,7 @@ async function loadStudyPods() {
         pods.forEach(pod => {
             const card = document.createElement('article');
             card.className = 'pod-card';
+            card.dataset.podId = pod.pod_id;
 
             const title = document.createElement('h2');
             title.textContent = pod.pod_name;
@@ -455,6 +456,13 @@ async function loadDiscoverablePods(containerId, messageId) {
                 badge.className = 'joined-badge';
                 badge.textContent = pod.is_creator ? 'Your pod' : 'Joined';
                 actions.appendChild(badge);
+
+                const viewButton = document.createElement('button');
+                viewButton.type = 'button';
+                viewButton.className = 'btn btn-outline';
+                viewButton.textContent = 'View pod';
+                viewButton.addEventListener('click', () => openStudyPod(pod.pod_id));
+                actions.appendChild(viewButton);
             } else {
                 const requestButton = document.createElement('button');
                 requestButton.type = 'button';
@@ -827,18 +835,38 @@ function showDashboardView(viewName) {
     });
 
     if (selectedView === 'pods') {
-        loadPodCourses();
-        loadStudyPods();
+        return Promise.all([loadPodCourses(), loadStudyPods()]);
     } else if (selectedView === 'matches') {
-        loadDiscoverablePods('matches-pods-container', 'matches-pods-message');
+        return loadDiscoverablePods('matches-pods-container', 'matches-pods-message');
     } else if (selectedView === 'schedule') {
-        loadStudentSchedule();
+        return loadStudentSchedule();
     } else if (selectedView === 'catalog') {
-        loadFullCourseCatalog();
-        loadDiscoverablePods('catalog-pods-container', 'catalog-pods-message');
+        return Promise.all([
+            loadFullCourseCatalog(),
+            loadDiscoverablePods('catalog-pods-container', 'catalog-pods-message')
+        ]);
     } else if (selectedView === 'settings') {
-        loadUserSettings();
+        return loadUserSettings();
     }
+    return Promise.resolve();
+}
+
+async function openStudyPod(podId) {
+    history.replaceState(null, '', '#pods');
+    await showDashboardView('pods');
+
+    const podCard = [...document.querySelectorAll('#pods-container .pod-card')]
+        .find(card => card.dataset.podId === podId);
+    if (!podCard) {
+        const message = document.getElementById('pods-message');
+        message.textContent = 'This pod is not available in your study pods.';
+        message.classList.add('error');
+        return;
+    }
+
+    podCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    podCard.classList.add('pod-card-highlight');
+    window.setTimeout(() => podCard.classList.remove('pod-card-highlight'), 2200);
 }
 
 // Stub for viewing profile

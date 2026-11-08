@@ -29,7 +29,12 @@ async function getAvailablePods(req, res) {
              LEFT JOIN users u ON u.id = p.created_by
              LEFT JOIN pod_members pm ON pm.pod_id = p.id
              LEFT JOIN pod_membership_requests pr ON pr.pod_id = p.id AND pr.user_id = $1
-             WHERE uc.user_id = $1 OR p.created_by = $1
+             WHERE uc.user_id = $1
+                OR p.created_by = $1
+                OR EXISTS (
+                    SELECT 1 FROM pod_members current_member
+                    WHERE current_member.pod_id = p.id AND current_member.user_id = $1
+                )
              GROUP BY p.id, c.id, u.full_name
              ORDER BY p.created_at DESC`,
             [userId]
