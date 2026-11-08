@@ -317,6 +317,19 @@
             gap: 1.25rem;
         }
 
+        .pod-discovery {
+            margin-top: 2rem;
+        }
+
+        .pod-discovery h2 {
+            margin-bottom: 0.35rem;
+        }
+
+        .pod-discovery-intro {
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+        }
+
         .pod-card {
             display: flex;
             flex-direction: column;
@@ -566,6 +579,12 @@
                 <div class="matches-grid">
                     <!-- app.js will automatically populate match cards here -->
                 </div>
+                <section class="pod-discovery" aria-labelledby="matches-pod-discovery-title">
+                    <h2 id="matches-pod-discovery-title">Study pods to explore</h2>
+                    <p class="pod-discovery-intro">Find a group studying any course and request to join.</p>
+                    <p id="matches-pods-message" class="pod-message" aria-live="polite"></p>
+                    <div id="matches-pods-container" class="pods-grid" aria-live="polite"></div>
+                </section>
             </section>
 
             <section id="pods-view" class="hidden">
@@ -604,6 +623,12 @@
                 </div>
                 <p id="catalog-message" class="pod-message" aria-live="polite"></p>
                 <div id="catalog-grid" class="catalog-grid"></div>
+                <section class="pod-discovery" aria-labelledby="catalog-pod-discovery-title">
+                    <h2 id="catalog-pod-discovery-title">Study pods across courses</h2>
+                    <p class="pod-discovery-intro">Browse groups created by other CampusSync students and request to join.</p>
+                    <p id="catalog-pods-message" class="pod-message" aria-live="polite"></p>
+                    <div id="catalog-pods-container" class="pods-grid" aria-live="polite"></div>
+                </section>
             </section>
 
             <section id="settings-view" class="hidden">

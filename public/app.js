@@ -278,22 +278,92 @@ async function loadStudyPods() {
             members.textContent = `Members: ${pod.current_members_count} / ${pod.max_members}`;
             card.appendChild(members);
 
+            const actions = document.createElement('div');
+            actions.className = 'pod-actions';
             if (pod.is_member) {
                 const badge = document.createElement('span');
                 badge.className = 'joined-badge';
                 badge.textContent = 'Joined';
-                card.appendChild(badge);
+                actions.appendChild(badge);
+                if (pod.is_creator) {
+                    const requestsButton = document.createElement('button');
+                    requestsButton.type = 'button';
+                    requestsButton.className = 'btn btn-outline';
+                    requestsButton.textContent = `Membership requests${pod.pending_requests_count ? ` (${pod.pending_requests_count})` : ''}`;
+                    actions.appendChild(requestsButton);
+                }
             } else {
                 const joinButton = document.createElement('button');
                 joinButton.type = 'button';
                 joinButton.className = 'btn btn-primary';
-                joinButton.textContent = pod.is_full ? 'Full' : 'Join pod';
-                joinButton.disabled = pod.is_full;
-                joinButton.addEventListener('click', () => joinStudyPod(pod.pod_id));
-                card.appendChild(joinButton);
+                if (pod.request_status === 'pending') {
+                    joinButton.textContent = 'Request pending';
+                    joinButton.disabled = true;
+                } else {
+                    joinButton.textContent = pod.is_full ? 'Full' : pod.request_status === 'rejected' ? 'Request again' : 'Request to join';
+                    joinButton.disabled = pod.is_full;
+                    joinButton.addEventListener('click', () => joinStudyPod(pod.pod_id));
+                }
+                actions.appendChild(joinButton);
+            }
+            card.appendChild(actions);
+
+            if (pod.is_creator) {
+                const requestList = document.createElement('div');
+                requestList.className = 'pod-request-list';
+                card.appendChild(requestList);
+                if (pod.pending_requests_count > 0) {
+                    loadMembershipRequests(pod.pod_id, requestList);
+                } else {
+                    requestList.textContent = 'No pending membership requests.';
+                }
+            }
+
+            if (pod.is_member) {
+                const meetupSection = document.createElement('section');
+                meetupSection.className = 'pod-meetup-section';
+                const meetupHeading = document.createElement('h3');
+                meetupHeading.textContent = 'Plan a meetup';
+                meetupSection.appendChild(meetupHeading);
+
+                const meetupForm = document.createElement('form');
+                meetupForm.className = 'pod-meetup-form';
+                meetupForm.dataset.podId = pod.pod_id;
+                meetupForm.innerHTML = `
+                    <label>What are you studying?
+                        <input name="title" type="text" maxlength="100" required placeholder="e.g. Review for the midterm">
+                    </label>
+                    <label>When?
+                        <input name="startsAt" type="datetime-local" required>
+                    </label>
+                    <label>Where?
+                        <input name="location" type="text" maxlength="200" required placeholder="Balme Library">
+                    </label>
+                    <label>Extra details (optional)
+                        <input name="notes" type="text" maxlength="500" placeholder="Bring your lecture notes">
+                    </label>
+                    <button class="btn btn-primary" type="submit">Suggest meetup</button>
+                `;
+                meetupSection.appendChild(meetupForm);
+
+                const meetupStatus = document.createElement('p');
+                meetupStatus.className = 'pod-meetup-status';
+                meetupStatus.setAttribute('aria-live', 'polite');
+                meetupSection.appendChild(meetupStatus);
+
+                const meetupList = document.createElement('div');
+                meetupList.className = 'pod-meetup-list';
+                meetupSection.appendChild(meetupList);
+                card.appendChild(meetupSection);
+                loadPodMeetups(pod.pod_id, meetupList, meetupStatus);
             }
 
             container.appendChild(card);
+
+            const requestButton = actions.querySelector('.btn-outline');
+            if (requestButton && pod.is_creator) {
+                requestButton.addEventListener('click', () => loadMembershipRequests(pod.pod_id, card.querySelector('.pod-request-list')));
+            }
         });
     } catch (err) {
         console.error('Error loading study pods:', err);
@@ -302,7 +372,76 @@ async function loadStudyPods() {
     }
 }
 
-async function joinStudyPod(podId) {
+async function loadDiscoverablePods(containerId, messageId) {
+    const container = document.getElementById(containerId);
+    const message = document.getElementById(messageId);
+    if (!container || !message) return;
+
+    container.replaceChildren();
+    message.textContent = 'Loading study pods...';
+    message.classList.remove('error');
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/pods/discover`, {
+            headers: getAuthHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to discover study pods');
+        }
+
+        const pods = data.pods || [];
+        message.textContent = pods.length
+            ? ''
+            : 'No study pods have been created yet. Start one for a course you enjoy.';
+
+        pods.forEach(pod => {
+            const card = document.createElement('article');
+            card.className = 'pod-card';
+
+            const title = document.createElement('h2');
+            title.textContent = pod.pod_name;
+            const course = document.createElement('p');
+            course.textContent = `${pod.course_code} — ${pod.course_title}`;
+            const organizer = document.createElement('p');
+            organizer.textContent = `Organizer: ${pod.creator_name || 'CampusSync student'}`;
+            const members = document.createElement('p');
+            members.textContent = `Members: ${pod.current_members_count} / ${pod.max_members}`;
+            const actions = document.createElement('div');
+            actions.className = 'pod-actions';
+
+            if (pod.is_creator || pod.is_member) {
+                const badge = document.createElement('span');
+                badge.className = 'joined-badge';
+                badge.textContent = pod.is_creator ? 'Your pod' : 'Joined';
+                actions.appendChild(badge);
+            } else {
+                const requestButton = document.createElement('button');
+                requestButton.type = 'button';
+                requestButton.className = 'btn btn-primary';
+                requestButton.textContent = pod.is_full
+                    ? 'Full'
+                    : pod.request_status === 'pending'
+                        ? 'Request pending'
+                        : pod.request_status === 'rejected'
+                            ? 'Request again'
+                            : 'Request to join';
+                requestButton.disabled = pod.is_full || pod.request_status === 'pending';
+                requestButton.addEventListener('click', () => joinStudyPod(pod.pod_id, message));
+                actions.appendChild(requestButton);
+            }
+
+            card.append(title, course, organizer, members, actions);
+            container.appendChild(card);
+        });
+    } catch (err) {
+        console.error('Error discovering study pods:', err);
+        message.textContent = err.message;
+        message.classList.add('error');
+    }
+}
+
+async function joinStudyPod(podId, feedbackElement = document.getElementById('pods-message')) {
     try {
         const response = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(podId)}/join`, {
             method: 'POST',
@@ -312,12 +451,166 @@ async function joinStudyPod(podId) {
         if (!response.ok) {
             throw new Error(data.error || 'Failed to join study pod');
         }
-        await loadStudyPods();
+        await Promise.all([
+            loadStudyPods(),
+            loadDiscoverablePods('matches-pods-container', 'matches-pods-message'),
+            loadDiscoverablePods('catalog-pods-container', 'catalog-pods-message')
+        ]);
+        if (feedbackElement) {
+            feedbackElement.textContent = data.message;
+            feedbackElement.classList.remove('error');
+        }
     } catch (err) {
         console.error('Error joining study pod:', err);
-        const message = document.getElementById('pods-message');
-        message.textContent = err.message;
-        message.classList.add('error');
+        const message = feedbackElement || document.getElementById('pods-message');
+        if (message) {
+            message.textContent = err.message;
+            message.classList.add('error');
+        }
+    }
+}
+
+async function loadMembershipRequests(podId, container) {
+    if (!container) return;
+    container.replaceChildren();
+    const loading = document.createElement('p');
+    loading.textContent = 'Loading requests...';
+    container.appendChild(loading);
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(podId)}/requests`, {
+            headers: getAuthHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not load membership requests');
+
+        container.replaceChildren();
+        const pending = (data.requests || []).filter(request => request.status === 'pending');
+        if (pending.length === 0) {
+            const empty = document.createElement('p');
+            empty.textContent = 'No pending membership requests.';
+            container.appendChild(empty);
+            return;
+        }
+
+        pending.forEach(request => {
+            const row = document.createElement('div');
+            row.className = 'pod-request-row';
+            const name = document.createElement('span');
+            name.textContent = request.full_name;
+            row.appendChild(name);
+
+            ['approved', 'rejected'].forEach(status => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = status === 'approved' ? 'btn btn-primary' : 'btn btn-outline';
+                button.textContent = status === 'approved' ? 'Approve' : 'Decline';
+                button.addEventListener('click', async () => {
+                    button.disabled = true;
+                    try {
+                        const result = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(podId)}/requests/${encodeURIComponent(request.request_id)}`, {
+                            method: 'PATCH',
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({ status })
+                        });
+                        const resultData = await result.json();
+                        if (!result.ok) throw new Error(resultData.error || 'Could not update request');
+                        await loadStudyPods();
+                    } catch (error) {
+                        button.disabled = false;
+                        const message = document.createElement('p');
+                        message.className = 'pod-inline-error';
+                        message.textContent = error.message;
+                        container.appendChild(message);
+                    }
+                });
+                row.appendChild(button);
+            });
+            container.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Error loading membership requests:', error);
+        container.replaceChildren();
+        const message = document.createElement('p');
+        message.className = 'pod-inline-error';
+        message.textContent = error.message;
+        container.appendChild(message);
+    }
+}
+
+async function loadPodMeetups(podId, container, statusElement) {
+    container.replaceChildren();
+    const loading = document.createElement('p');
+    loading.textContent = 'Loading meetups...';
+    container.appendChild(loading);
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(podId)}/meetups`, {
+            headers: getAuthHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not load meetups');
+
+        container.replaceChildren();
+        const meetups = data.meetups || [];
+        if (!meetups.length) {
+            const empty = document.createElement('p');
+            empty.textContent = 'No meetups planned yet. Suggest a time and place to get your group started.';
+            container.appendChild(empty);
+            return;
+        }
+
+        meetups.forEach(meetup => {
+            const item = document.createElement('article');
+            item.className = 'pod-meetup-card';
+            const title = document.createElement('h4');
+            title.textContent = meetup.title;
+            const details = document.createElement('p');
+            const date = new Date(meetup.starts_at);
+            details.textContent = `${date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${meetup.location}`;
+            const notes = document.createElement('p');
+            notes.textContent = meetup.notes || `Suggested by ${meetup.organizer_name}`;
+            const attendees = document.createElement('p');
+            attendees.textContent = `${meetup.attendee_count} attending`;
+            item.append(title, details, notes, attendees);
+
+            if (meetup.is_attending) {
+                const going = document.createElement('span');
+                going.className = 'joined-badge';
+                going.textContent = 'You’re going';
+                item.appendChild(going);
+            } else {
+                const attend = document.createElement('button');
+                attend.type = 'button';
+                attend.className = 'btn btn-outline';
+                attend.textContent = 'I’ll be there';
+                attend.addEventListener('click', async () => {
+                    attend.disabled = true;
+                    try {
+                        const result = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(podId)}/meetups/${encodeURIComponent(meetup.meetup_id)}/attend`, {
+                            method: 'POST',
+                            headers: getAuthHeaders()
+                        });
+                        const resultData = await result.json();
+                        if (!result.ok) throw new Error(resultData.error || 'Could not RSVP');
+                        await loadPodMeetups(podId, container, statusElement);
+                    } catch (error) {
+                        attend.disabled = false;
+                        statusElement.textContent = error.message;
+                        statusElement.classList.add('error');
+                    }
+                });
+                item.appendChild(attend);
+            }
+            container.appendChild(item);
+        });
+    } catch (error) {
+        console.error('Error loading pod meetups:', error);
+        container.replaceChildren();
+        const message = document.createElement('p');
+        message.className = 'pod-inline-error';
+        message.textContent = error.message;
+        container.appendChild(message);
     }
 }
 
@@ -496,10 +789,13 @@ function showDashboardView(viewName) {
     if (selectedView === 'pods') {
         loadPodCourses();
         loadStudyPods();
+    } else if (selectedView === 'matches') {
+        loadDiscoverablePods('matches-pods-container', 'matches-pods-message');
     } else if (selectedView === 'schedule') {
         loadStudentSchedule();
     } else if (selectedView === 'catalog') {
         loadFullCourseCatalog();
+        loadDiscoverablePods('catalog-pods-container', 'catalog-pods-message');
     } else if (selectedView === 'settings') {
         loadUserSettings();
     }
@@ -558,6 +854,52 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error creating study pod:', err);
             message.textContent = err.message;
             message.classList.add('error');
+        }
+    });
+
+    document.getElementById('pods-container').addEventListener('submit', async event => {
+        const form = event.target.closest('.pod-meetup-form');
+        if (!form) return;
+        event.preventDefault();
+
+        const formData = new FormData(form);
+        const card = form.closest('.pod-card');
+        const status = card.querySelector('.pod-meetup-status');
+        const submitButton = form.querySelector('button[type="submit"]');
+        const startsAt = new Date(formData.get('startsAt'));
+        if (!Number.isFinite(startsAt.getTime())) {
+            status.textContent = 'Choose a valid date and time.';
+            status.classList.add('error');
+            return;
+        }
+
+        status.textContent = 'Scheduling your meetup...';
+        status.classList.remove('error');
+        submitButton.disabled = true;
+        try {
+            const response = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(form.dataset.podId)}/meetups`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    title: formData.get('title'),
+                    startsAt: startsAt.toISOString(),
+                    location: formData.get('location'),
+                    notes: formData.get('notes')
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to schedule meetup');
+
+            form.reset();
+            status.textContent = 'Meetup planned! Pod members can RSVP below.';
+            const meetupList = card.querySelector('.pod-meetup-list');
+            await loadPodMeetups(form.dataset.podId, meetupList, status);
+        } catch (error) {
+            console.error('Error scheduling meetup:', error);
+            status.textContent = error.message;
+            status.classList.add('error');
+        } finally {
+            submitButton.disabled = false;
         }
     });
 

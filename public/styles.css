@@ -552,6 +552,87 @@ body:has(.nav-links) .btn-primary:hover:not(:disabled) { background: #374c3d; }
 .pod-card h2, .schedule-day h2, .dashboard-panel h2, .catalog-card h2 { color: #405543; }
 .pod-card p, .catalog-card p, .panel-description { color: #788075; }
 .joined-badge { background: #e8f1e4; color: #4e704e; }
+
+.pod-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.pod-request-list {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.pod-request-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 1px solid #e8e1d5;
+    border-radius: 12px;
+    background: #faf7ef;
+}
+
+.pod-request-row > span { flex: 1 1 130px; color: #4a5b49; font-weight: 650; }
+.pod-request-row .btn { flex: 0 0 auto; padding: 0.5rem 0.75rem; }
+.pod-inline-error { color: #a64e40 !important; }
+
+.pod-meetup-section {
+    display: grid;
+    gap: 0.8rem;
+    margin-top: 0.4rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee8dd;
+}
+
+.pod-meetup-section h3 { color: #52634f; font-size: 0.95rem; }
+
+.pod-meetup-form {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.pod-meetup-form label {
+    display: grid;
+    gap: 0.35rem;
+    color: #687365;
+    font-size: 0.78rem;
+    font-weight: 650;
+}
+
+.pod-meetup-form input {
+    min-width: 0;
+    width: 100%;
+    min-height: 40px;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid #e3ddcf;
+    border-radius: 9px;
+    background: #fffefa;
+    color: #344238;
+}
+
+.pod-meetup-form input:focus { border-color: #81947c; box-shadow: 0 0 0 3px rgba(73, 98, 78, 0.08); outline: none; }
+.pod-meetup-form .btn { flex: initial; }
+
+.pod-meetup-list { display: grid; gap: 0.65rem; }
+
+.pod-meetup-card {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.8rem;
+    border: 1px solid #e8e1d5;
+    border-radius: 12px;
+    background: #faf7ef;
+}
+
+.pod-meetup-card h4 { color: #405543; font-size: 0.88rem; }
+.pod-meetup-card p { margin: 0; color: #788075; font-size: 0.8rem; line-height: 1.5; }
+.pod-meetup-card .btn { justify-self: start; flex: initial; margin-top: 0.25rem; }
+.pod-meetup-status.error { color: #a64e40; }
+
 .schedule-slot { background: #f5f1e8; color: #7b8176; }
 .schedule-slot.available { background: #e8f1e4; color: #496b4c; }
 .catalog-controls input, .catalog-controls select { border-color: #e3ddcf; border-radius: 10px; }
