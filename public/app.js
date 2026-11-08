@@ -16,6 +16,11 @@ function checkAuth() {
     return token;
 }
 
+function logout() {
+    localStorage.removeItem('campussync_token');
+    window.location.replace('login.html');
+}
+
 function getAuthHeaders() {
     return {
         'Authorization': `Bearer ${getAuthToken()}`,
@@ -507,6 +512,7 @@ function viewProfile(userId) {
 
 // Run when dashboard loads
 document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('logout-button').addEventListener('click', logout);
     loadMatches();
 
     document.querySelectorAll('[data-dashboard-view]').forEach(link => {

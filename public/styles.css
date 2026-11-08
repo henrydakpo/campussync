@@ -447,6 +447,25 @@ body:has(.nav-links) header {
 .user-info .name { color: #344238; }
 .user-info .role { color: #7a8175; }
 
+.logout-button {
+    min-height: 38px;
+    padding: 0 13px;
+    border: 1px solid #e3ddcf;
+    border-radius: 11px;
+    background: #fffefa;
+    color: #64705f;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 650;
+    transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+
+.logout-button:hover {
+    border-color: #dfc3b1;
+    background: #faf0e9;
+    color: #9c5e47;
+}
+
 body:has(.nav-links) main { padding: clamp(1.3rem, 3vw, 2.5rem); }
 
 .dashboard-header {
@@ -585,6 +604,7 @@ body:has(.nav-links) .btn-primary:hover:not(:disabled) { background: #374c3d; }
     .user-info { min-width: 0; }
     .user-info .name { max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; }
     .user-info .role { font-size: 0.68rem; }
+    .logout-button { min-height: 35px; padding-inline: 9px; font-size: 0.76rem; }
 
     body:has(.nav-links) main { padding: 1.15rem 1rem 2rem; }
     .dashboard-header { align-items: flex-start; flex-direction: column; gap: 0.8rem; }
