@@ -3,19 +3,24 @@ const fs = require('fs');
 const path = require('path');
 const pool = require('../config/db');
 
-async function applyPodWorkflowMigration() {
-    const migrationPath = path.join(__dirname, '..', 'migrations', '002_pod_requests_meetups.sql');
-    const migration = fs.readFileSync(migrationPath, 'utf8');
+async function applyPodWorkflowMigrations() {
+    const migrationPaths = [
+        path.join(__dirname, '..', 'migrations', '002_pod_requests_meetups.sql'),
+        path.join(__dirname, '..', 'migrations', '003_pod_chat_messages.sql')
+    ];
     const client = await pool.connect();
 
     try {
-        await client.query('BEGIN');
-        await client.query(migration);
-        await client.query('COMMIT');
-        console.log('Pod request and meetup database migration applied.');
+        for (const migrationPath of migrationPaths) {
+            const migration = fs.readFileSync(migrationPath, 'utf8');
+            await client.query('BEGIN');
+            await client.query(migration);
+            await client.query('COMMIT');
+            console.log(`Database migration applied: ${path.basename(migrationPath)}`);
+        }
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('Failed to apply pod request and meetup database migration:', error);
+        console.error('Failed to apply pod workflow database migrations:', error);
         process.exitCode = 1;
     } finally {
         client.release();
@@ -23,8 +28,8 @@ async function applyPodWorkflowMigration() {
     }
 }
 
-applyPodWorkflowMigration().catch(async error => {
-    console.error('Failed to start pod request and meetup database migration:', error);
+applyPodWorkflowMigrations().catch(async error => {
+    console.error('Failed to start pod workflow database migrations:', error);
     await pool.end();
     process.exitCode = 1;
 });

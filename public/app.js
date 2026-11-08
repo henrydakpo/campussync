@@ -17,6 +17,7 @@ function checkAuth() {
 }
 
 function logout() {
+    if (podChatSocket) podChatSocket.disconnect();
     localStorage.removeItem('campussync_token');
     window.location.replace('login.html');
 }
@@ -332,6 +333,54 @@ async function loadStudyPods() {
             }
 
             if (pod.is_member) {
+                const chatSection = document.createElement('section');
+                chatSection.className = 'pod-chat-section';
+                const chatHeading = document.createElement('h3');
+                chatHeading.textContent = 'Pod chat';
+                const chatToggle = document.createElement('button');
+                chatToggle.type = 'button';
+                chatToggle.className = 'btn btn-outline pod-chat-toggle';
+                chatToggle.textContent = 'Open chat';
+                chatToggle.setAttribute('aria-expanded', 'false');
+                const chatPanel = document.createElement('div');
+                chatPanel.className = 'pod-chat-panel hidden';
+                chatPanel.dataset.podId = pod.pod_id;
+                const chatStatus = document.createElement('p');
+                chatStatus.className = 'pod-chat-status';
+                chatStatus.setAttribute('aria-live', 'polite');
+                chatStatus.textContent = 'Open chat to view messages.';
+                const chatMessages = document.createElement('div');
+                chatMessages.className = 'pod-chat-messages';
+                chatMessages.setAttribute('role', 'log');
+                chatMessages.setAttribute('aria-label', `${pod.pod_name} chat messages`);
+                chatMessages.setAttribute('aria-live', 'polite');
+                const chatForm = document.createElement('form');
+                chatForm.className = 'pod-chat-form';
+                chatForm.dataset.podId = pod.pod_id;
+                const chatInput = document.createElement('textarea');
+                chatInput.name = 'messageText';
+                chatInput.maxLength = 2000;
+                chatInput.rows = 2;
+                chatInput.required = true;
+                chatInput.placeholder = 'Write a message to your pod...';
+                chatInput.setAttribute('aria-label', 'Chat message');
+                const sendButton = document.createElement('button');
+                sendButton.type = 'submit';
+                sendButton.className = 'btn btn-primary';
+                sendButton.textContent = 'Send';
+                chatForm.append(chatInput, sendButton);
+                chatPanel.append(chatStatus, chatMessages, chatForm);
+                chatToggle.addEventListener('click', () => {
+                    const isOpen = !chatPanel.classList.contains('hidden');
+                    chatPanel.classList.toggle('hidden', isOpen);
+                    chatToggle.setAttribute('aria-expanded', String(!isOpen));
+                    chatToggle.textContent = isOpen ? 'Open chat' : 'Close chat';
+                    if (!isOpen) openPodChat(pod.pod_id, chatPanel);
+                    else leavePodChat(pod.pod_id);
+                });
+                chatSection.append(chatHeading, chatToggle, chatPanel);
+                card.appendChild(chatSection);
+
                 const meetupSection = document.createElement('section');
                 meetupSection.className = 'pod-meetup-section';
                 const meetupHeading = document.createElement('h3');
@@ -692,6 +741,120 @@ async function loadPodMeetups(podId, container, statusElement) {
     }
 }
 
+let podChatSocket = null;
+let podChatUserId = null;
+const openPodChatIds = new Set();
+
+function initializePodChatSocket() {
+    if (podChatSocket) {
+        return podChatSocket;
+    }
+
+    podChatSocket = window.io({
+        auth: { token: getAuthToken() }
+    });
+
+    podChatSocket.on('chat_identity', identity => {
+        podChatUserId = identity.userId;
+    });
+    podChatSocket.on('connect', () => {
+        openPodChatIds.forEach(podId => {
+            podChatSocket.emit('join_pod', podId, result => {
+                if (result && result.error) setPodChatStatus(podId, result.error, true);
+                else setPodChatStatus(podId, 'Connected. Messages update in real time.');
+            });
+        });
+    });
+    podChatSocket.on('disconnect', () => {
+        openPodChatIds.forEach(podId => setPodChatStatus(podId, 'Reconnecting to pod chat...'));
+    });
+    podChatSocket.on('connect_error', error => {
+        console.error('Pod chat connection failed:', error);
+        openPodChatIds.forEach(podId => setPodChatStatus(podId, error.message, true));
+    });
+    podChatSocket.on('receive_message', message => appendPodChatMessage(message));
+
+    return podChatSocket;
+}
+
+function setPodChatStatus(podId, text, isError = false) {
+    const card = [...document.querySelectorAll('#pods-container .pod-card')]
+        .find(item => item.dataset.podId === podId);
+    const status = card && card.querySelector('.pod-chat-status');
+    if (!status) return;
+    status.textContent = text;
+    status.classList.toggle('error', isError);
+}
+
+function appendPodChatMessage(message) {
+    const card = [...document.querySelectorAll('#pods-container .pod-card')]
+        .find(item => item.dataset.podId === message.pod_id);
+    const list = card && card.querySelector('.pod-chat-messages');
+    if (!list || list.querySelector(`[data-message-id="${message.id}"]`)) return;
+
+    const item = document.createElement('article');
+    item.className = `pod-chat-message${message.user_id === podChatUserId ? ' own-message' : ''}`;
+    item.dataset.messageId = message.id;
+    const heading = document.createElement('div');
+    heading.className = 'pod-chat-message-heading';
+    const sender = document.createElement('strong');
+    sender.textContent = message.full_name;
+    const timestamp = document.createElement('time');
+    const date = new Date(message.created_at);
+    timestamp.dateTime = date.toISOString();
+    timestamp.textContent = date.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+    const text = document.createElement('p');
+    text.textContent = message.message_text;
+    heading.append(sender, timestamp);
+    item.append(heading, text);
+    list.appendChild(item);
+    list.scrollTop = list.scrollHeight;
+}
+
+async function openPodChat(podId, panel) {
+    const status = panel.querySelector('.pod-chat-status');
+    const socket = initializePodChatSocket();
+    openPodChatIds.add(podId);
+    status.textContent = 'Connecting to pod chat...';
+    status.classList.remove('error');
+
+    try {
+        const joined = await new Promise((resolve, reject) => {
+            socket.timeout(8000).emit('join_pod', podId, (error, result) => {
+                if (error) reject(new Error('Timed out connecting to pod chat.'));
+                else if (result && result.error) reject(new Error(result.error));
+                else resolve(result);
+            });
+        });
+        if (!joined || !joined.success) throw new Error('Unable to join pod chat.');
+
+        const response = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(podId)}/messages`, {
+            headers: getAuthHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to load pod chat.');
+
+        const list = panel.querySelector('.pod-chat-messages');
+        list.replaceChildren();
+        (data.messages || []).forEach(message => appendPodChatMessage(message));
+        status.textContent = 'Connected. Messages update in real time.';
+        status.classList.remove('error');
+    } catch (error) {
+        console.error('Error opening pod chat:', error);
+        status.textContent = error.message;
+        status.classList.add('error');
+        openPodChatIds.delete(podId);
+        if (socket.connected) socket.emit('leave_pod', podId);
+    }
+}
+
+function leavePodChat(podId) {
+    openPodChatIds.delete(podId);
+    if (podChatSocket && podChatSocket.connected) {
+        podChatSocket.emit('leave_pod', podId);
+    }
+}
+
 const DASHBOARD_VIEWS = {
     matches: { id: 'matches-view', title: 'Compatible Study Partners' },
     pods: { id: 'pods-view', title: 'My Study Pods' },
@@ -846,6 +1009,11 @@ async function saveAccountSettings(values, messageElement) {
     }
 
     localStorage.setItem('campussync_token', data.token);
+    if (podChatSocket) {
+        podChatSocket.disconnect();
+        podChatSocket = null;
+        if (openPodChatIds.size) initializePodChatSocket();
+    }
     currentProfileUser = {
         full_name: data.user.fullName,
         email: data.user.email,
@@ -989,6 +1157,42 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('pods-container').addEventListener('submit', async event => {
+        const chatForm = event.target.closest('.pod-chat-form');
+        if (chatForm) {
+            event.preventDefault();
+            const podId = chatForm.dataset.podId;
+            const input = chatForm.elements.messageText;
+            const submitButton = chatForm.querySelector('button[type="submit"]');
+            const status = chatForm.closest('.pod-chat-panel').querySelector('.pod-chat-status');
+            const messageText = input.value.trim();
+            if (!messageText) return;
+
+            submitButton.disabled = true;
+            status.textContent = 'Sending...';
+            status.classList.remove('error');
+            try {
+                const socket = initializePodChatSocket();
+                const result = await new Promise((resolve, reject) => {
+                    socket.timeout(8000).emit('send_message', { podId, messageText }, (error, response) => {
+                        if (error) reject(new Error('Sending timed out. Check your connection and try again.'));
+                        else if (response && response.error) reject(new Error(response.error));
+                        else resolve(response);
+                    });
+                });
+                if (!result || !result.success) throw new Error('Failed to send message.');
+                input.value = '';
+                status.textContent = 'Connected. Messages update in real time.';
+            } catch (error) {
+                console.error('Error sending pod chat message:', error);
+                status.textContent = error.message;
+                status.classList.add('error');
+            } finally {
+                submitButton.disabled = false;
+                input.focus();
+            }
+            return;
+        }
+
         const form = event.target.closest('.pod-meetup-form');
         if (!form) return;
         event.preventDefault();
