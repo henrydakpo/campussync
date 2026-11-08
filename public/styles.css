@@ -353,6 +353,18 @@ body:has(.nav-links) .brand {
     letter-spacing: -0.035em;
 }
 
+.dashboard-brand {
+    border-radius: 10px;
+    text-decoration: none;
+    transition: color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.dashboard-brand:hover {
+    background: #f2eee4;
+    color: #b56e4d;
+    transform: translateX(2px);
+}
+
 .nav-links { gap: 0.25rem; }
 
 .nav-links a {
