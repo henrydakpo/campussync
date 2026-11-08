@@ -324,7 +324,7 @@
         <div class="content">
             <section class="panel">
                 <h2>1. Add your study courses</h2>
-                <p class="muted">Search the catalog by course code or title, or ask AI to suggest an equivalent course with an existing study pod.</p>
+                <p class="muted">Search the catalog by course code or title, ask AI to suggest an equivalent course, or create a nationwide study pod when no existing pod fits.</p>
 
                 <div class="form-row">
                     <div class="field">
@@ -494,6 +494,116 @@
             return card;
         }
 
+        function createExistingPodSuggestion(pod, container) {
+            const podId = pod.pod_id || pod.id;
+            if (!podId) return;
+
+            const card = document.createElement('article');
+            card.className = 'course-search-result';
+            const title = document.createElement('h3');
+            title.textContent = pod.pod_name || `${pod.course_title} Study Pod`;
+            const details = document.createElement('p');
+            details.textContent = `${pod.course_code || 'National course'} — ${pod.course_title || 'Study pod'}`;
+            card.append(title, details);
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-primary';
+            const alreadyMember = pod.is_member === true;
+            const requestPending = pod.request_status === 'pending';
+            const isFull = pod.is_full === true
+                || (Number.isFinite(pod.current_members_count) && Number.isFinite(pod.max_members)
+                    && pod.current_members_count >= pod.max_members);
+            button.textContent = alreadyMember ? 'You are a member'
+                : requestPending ? 'Request pending'
+                    : isFull ? 'Pod is full' : 'Request to join';
+            button.disabled = alreadyMember || requestPending || isFull;
+            button.addEventListener('click', async () => {
+                button.disabled = true;
+                button.textContent = 'Sending request...';
+                try {
+                    const response = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(podId)}/join`, {
+                        method: 'POST',
+                        headers: getAuthHeaders()
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Could not request to join this pod.');
+                    button.textContent = data.requestStatus === 'pending' ? 'Request pending' : 'You are a member';
+                    courseSearchStatus.textContent = data.message || 'Your request was sent to the pod organizer.';
+                } catch (error) {
+                    button.disabled = false;
+                    button.textContent = 'Request to join';
+                    courseSearchStatus.textContent = error.message;
+                    courseSearchStatus.classList.add('error');
+                }
+            });
+            card.appendChild(button);
+            container.appendChild(card);
+        }
+
+        async function createNationalPod(query, courseDescription, button) {
+            button.disabled = true;
+            button.textContent = 'Creating...';
+            courseSearchStatus.textContent = 'Checking once more for an existing pod, then creating the national study pod...';
+            courseSearchStatus.classList.remove('error');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/ai/match-course`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        courseTitle: query,
+                        courseDescription,
+                        courseStatus: courseStatus.value,
+                        createPod: true
+                    })
+                });
+                const data = await response.json();
+
+                if (response.status === 409) {
+                    courseSearchStatus.textContent = data.error || 'A study pod for this course already exists.';
+                    courseSearchResults.querySelector('.national-pod-create')?.remove();
+                    if (Array.isArray(data.pods)) {
+                        data.pods.forEach(pod => createExistingPodSuggestion(pod, courseSearchResults));
+                    } else if (data.existingPod) {
+                        createExistingPodSuggestion(data.existingPod, courseSearchResults);
+                    }
+                    return;
+                }
+                if (!response.ok) throw new Error(data.error || 'Could not create the national study pod.');
+
+                const course = data.course;
+                savedCourseIds.add(course.id);
+                if (!selectedCourses.some(item => item.id === course.id)) {
+                    selectedCourses.push({
+                        id: course.id,
+                        code: course.course_code,
+                        title: course.course_title,
+                        status: courseStatus.value
+                    });
+                }
+                if (!courseCatalog.some(item => item.id === course.id)) courseCatalog.push(course);
+                renderSelectedCourses();
+                renderLocalCourseResults();
+
+                const notice = document.createElement('p');
+                notice.className = 'success';
+                notice.textContent = data.message;
+                courseSearchResults.replaceChildren(notice);
+                const podDetails = document.createElement('p');
+                podDetails.className = 'muted';
+                podDetails.textContent = `${data.pod.pod_name} is ready. Share it with students nationwide so they can discover and request to join.`;
+                courseSearchResults.appendChild(podDetails);
+                courseSearchStatus.textContent = 'Course saved to your profile and you are the pod’s first member.';
+            } catch (error) {
+                console.error('Error creating national study pod:', error);
+                courseSearchStatus.textContent = error.message;
+                courseSearchStatus.classList.add('error');
+                button.disabled = false;
+                button.textContent = 'Create national study pod';
+            }
+        }
+
         function renderLocalCourseResults() {
             const query = courseSearchInput.value.trim().toLowerCase();
             courseSearchResults.replaceChildren();
@@ -551,6 +661,24 @@
                     noMatches.className = 'muted';
                     noMatches.textContent = 'No strongly equivalent catalog courses with existing study pods were found. Try adding more course topics or search the course catalog directly.';
                     courseSearchResults.appendChild(noMatches);
+
+                    if (!Array.isArray(data.pods) || data.pods.length === 0) {
+                        courseSearchStatus.textContent = 'No equivalent pod was found. You can create a nationwide pod and invite other students.';
+                        const createButton = document.createElement('button');
+                        createButton.type = 'button';
+                        createButton.className = 'btn btn-primary national-pod-create';
+                        createButton.textContent = 'Create national study pod';
+                        createButton.addEventListener('click', () => createNationalPod(
+                            query,
+                            document.getElementById('course-description-input').value.trim(),
+                            createButton
+                        ));
+                        courseSearchResults.appendChild(createButton);
+                        const note = document.createElement('p');
+                        note.className = 'muted';
+                        note.textContent = 'You will be the first member. The pod will be discoverable to students nationwide.';
+                        courseSearchResults.appendChild(note);
+                    }
                 } else {
                     matchedCourses.forEach(course => {
                         courseSearchResults.appendChild(createCourseSuggestion(
