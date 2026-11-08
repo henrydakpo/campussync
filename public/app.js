@@ -1029,12 +1029,10 @@ function renderCourseCatalog() {
         const card = document.createElement('article');
         card.className = 'catalog-card';
         const title = document.createElement('h2');
-        title.textContent = course.course_code;
-        const description = document.createElement('p');
-        description.textContent = course.course_title;
+        title.textContent = course.course_title;
         const departmentName = document.createElement('p');
         departmentName.textContent = course.department;
-        card.append(title, description, departmentName);
+        card.append(title, departmentName);
         grid.appendChild(card);
     });
 
