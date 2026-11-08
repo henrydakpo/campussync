@@ -1,0 +1,31 @@
+-- Starter CampusSync course catalog. Verify course codes and titles against the
+-- current University of Ghana catalog before using this data in production.
+INSERT INTO courses (course_code, course_title, department) VALUES
+    ('INFS 112', 'Introduction to Information Management', 'Information Studies'),
+    ('INFS 212', 'Principles of Management', 'Information Studies'),
+    ('INFS 214', 'Introduction to Computing', 'Information Studies'),
+    ('INFS 311', 'Information Sources and Services', 'Information Studies'),
+    ('DCIT 101', 'Introduction to Computer Science I', 'Computer Science'),
+    ('DCIT 104', 'Programming I', 'Computer Science'),
+    ('DCIT 201', 'Data Structures and Algorithms', 'Computer Science'),
+    ('PSYC 101', 'Elements of Psychology', 'Psychology'),
+    ('PSYC 102', 'Psychology for Everyday Living', 'Psychology'),
+    ('PSYC 221', 'Elements of Social Psychology', 'Psychology'),
+    ('PSYC 222', 'Motivation and Emotion', 'Psychology'),
+    ('PSYC 331', 'Statistics for Behavioral Sciences', 'Psychology'),
+    ('UGBS 101', 'Introduction to Business Administration', 'UGBS'),
+    ('UGBS 102', 'Introduction to Computing in Business', 'UGBS'),
+    ('UGBS 104', 'Principles of Management', 'UGBS'),
+    ('UGBS 201', 'Microeconomics', 'UGBS'),
+    ('UGBS 204', 'Marketing', 'UGBS'),
+    ('ECON 101', 'Introduction to Economics I', 'Economics'),
+    ('ECON 102', 'Introduction to Economics II', 'Economics'),
+    ('POLI 111', 'Introduction to Political Science', 'Political Science'),
+    ('POLI 112', 'Political and Social History of Ghana', 'Political Science'),
+    ('SOCI 121', 'Principles of Sociology', 'Sociology'),
+    ('SOCI 122', 'Diversity of People and Cultures', 'Sociology'),
+    ('UGRC 110', 'Academic Writing I', 'UGRC'),
+    ('UGRC 131', 'Understanding Human Societies', 'UGRC'),
+    ('UGRC 150', 'Critical Thinking and Practical Reasoning', 'UGRC'),
+    ('UGRC 220', 'Introduction to African Studies', 'UGRC')
+ON CONFLICT (course_code) DO NOTHING;

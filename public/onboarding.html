@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CampusSync - Course Setup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --success-bg: #dcfce7;
+            --success-text: #166534;
+            --warning-bg: #fff7ed;
+            --warning-text: #9a5b00;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+            overflow: hidden;
+        }
+
+        .topbar {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .brand {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 0.6rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            padding: 0.75rem 1.1rem;
+        }
+
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+        }
+
+        .content {
+            padding: 2rem 1.5rem 2.5rem;
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 1.5rem;
+        }
+
+        .panel {
+            border: 1px solid var(--border-color);
+            border-radius: 0.9rem;
+            background: #fff;
+            padding: 1.5rem;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+
+        .muted {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .field {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.45rem;
+            font-weight: 600;
+        }
+
+        select {
+            width: 100%;
+            padding: 0.75rem 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.6rem;
+            background: #fff;
+            color: var(--text-main);
+            outline: none;
+        }
+
+        select:focus {
+            border-color: var(--primary);
+        }
+
+        .chip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-top: 1rem;
+            min-height: 48px;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.55rem 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            background: #f8fafc;
+            font-size: 0.85rem;
+            color: var(--text-main);
+        }
+
+        .chip .remove {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .days-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .day-box {
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            background: #f8fafc;
+            padding: 0.85rem 0.75rem;
+        }
+
+        .day-title {
+            font-weight: 700;
+            margin-bottom: 0.7rem;
+            font-size: 0.82rem;
+        }
+
+        .slot-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.4rem;
+            font-size: 0.8rem;
+            color: var(--text-main);
+        }
+
+        input[type="checkbox"] {
+            accent-color: var(--primary);
+        }
+
+        .summary-card {
+            background: linear-gradient(180deg, #f8f8ff 0%, #ffffff 100%);
+        }
+
+        .summary-box {
+            border: 1px solid var(--border-color);
+            border-radius: 0.8rem;
+            padding: 0.85rem;
+            background: #fff;
+            margin-top: 1rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.28rem 0.55rem;
+            border-radius: 999px;
+            background: var(--success-bg);
+            color: var(--success-text);
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .warning {
+            background: var(--warning-bg);
+            color: var(--warning-text);
+            border: 1px solid #fed7aa;
+            border-radius: 0.6rem;
+            padding: 0.8rem 0.9rem;
+            font-size: 0.82rem;
+            margin-top: 1rem;
+        }
+
+        .save-bar {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        .error {
+            color: #dc2626;
+            font-size: 0.8rem;
+            margin-top: 0.6rem;
+            min-height: 1rem;
+        }
+
+        .success {
+            color: #15803d;
+            font-size: 0.82rem;
+            margin-top: 0.6rem;
+            min-height: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="topbar">
+            <div class="brand">🎓 CampusSync</div>
+            <div class="header-actions">
+                <button class="btn btn-ghost" type="button" onclick="window.location.href='dashboard.html'">Back to Dashboard</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <section class="panel">
+                <h2>1. Add your study courses</h2>
+                <p class="muted">Choose the courses you are currently learning or teaching.</p>
+
+                <div class="form-row">
+                    <div class="field">
+                        <label for="course-select">Course</label>
+                        <select id="course-select"></select>
+                    </div>
+                    <div class="field">
+                        <label for="course-status">Role for this course</label>
+                        <select id="course-status">
+                            <option value="learning">Learning</option>
+                            <option value="teaching">Teaching</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" type="button" id="add-course-btn">Add Course</button>
+
+                <div class="chip-list" id="selected-courses"></div>
+                <div id="course-error" class="error"></div>
+            </section>
+
+            <aside class="panel summary-card">
+                <h2>Profile Summary</h2>
+                <div class="summary-box">
+                    <div class="muted">Current status</div>
+                    <div style="margin-top: 0.5rem;"><span class="status-badge">Ready to match</span></div>
+                </div>
+
+                <div class="summary-box">
+                    <div class="muted">Selected courses</div>
+                    <div id="summary-course-count" style="margin-top: 0.5rem; font-weight: 700;">0</div>
+                </div>
+
+                <div class="summary-box">
+                    <div class="muted">Available hours</div>
+                    <div id="summary-slot-count" style="margin-top: 0.5rem; font-weight: 700;">0</div>
+                </div>
+
+                <div class="warning">
+                    Tip: Add at least 3–5 time slots for better matching with peers and tutors.
+                </div>
+            </aside>
+
+            <section class="panel" style="grid-column: 1 / -1;">
+                <h2>2. Set your weekly availability</h2>
+                <p class="muted">Check all time blocks you are free to study.</p>
+
+                <div class="days-grid" id="availability-grid"></div>
+                <div id="availability-error" class="error"></div>
+                <div id="availability-success" class="success"></div>
+
+                <div class="save-bar">
+                    <button class="btn btn-ghost" type="button" onclick="window.location.href='dashboard.html'">Skip for now</button>
+                    <button class="btn btn-primary" type="button" id="save-profile-btn">Save Profile</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000/api';
+        const token = localStorage.getItem('campussync_token');
+
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+
+        const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+        const TIME_BLOCKS = ['09_12', '12_15', '15_18', '18_21'];
+        const selectedCourses = [];
+        const savedCourseIds = new Set();
+
+        const courseSelect = document.getElementById('course-select');
+        const courseStatus = document.getElementById('course-status');
+        const selectedCoursesContainer = document.getElementById('selected-courses');
+        const summaryCourseCount = document.getElementById('summary-course-count');
+        const summarySlotCount = document.getElementById('summary-slot-count');
+        const availabilityGrid = document.getElementById('availability-grid');
+
+        function getAuthHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
+        async function loadCourses() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/profile/courses`, {
+                    method: 'GET',
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to load courses');
+                }
+
+                const courses = data.courses || [];
+
+                if (!courses.length) {
+                    courseSelect.innerHTML = '<option value="">No courses available</option>';
+                } else {
+                    courseSelect.innerHTML = courses.map(course => `
+                        <option value="${course.id}">${course.course_code} — ${course.course_title}</option>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error(error);
+                courseSelect.innerHTML = '<option value="">Could not load courses</option>';
+                document.getElementById('course-error').textContent = 'Could not load the course catalog. Please refresh and try again.';
+            }
+        }
+
+        async function loadExistingProfile() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/profile`, {
+                    method: 'GET',
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to load your saved profile');
+                }
+
+                (data.courses || []).forEach(course => {
+                    const courseId = course.course_id || course.courseId;
+                    const option = [...courseSelect.options].find(item => item.value === courseId);
+                    if (!option) return;
+
+                    savedCourseIds.add(courseId);
+                    const [code, title] = option.textContent.split(' — ');
+                    const existing = selectedCourses.find(item => item.id === courseId);
+                    if (existing) {
+                        existing.status = course.status;
+                    } else {
+                        selectedCourses.push({ id: courseId, code, title, status: course.status });
+                    }
+                });
+                renderSelectedCourses();
+
+                (data.availabilities || []).forEach(slotCode => {
+                    const checkbox = [...availabilityGrid.querySelectorAll('input[type="checkbox"]')]
+                        .find(input => input.value === slotCode);
+                    if (checkbox) checkbox.checked = true;
+                });
+                updateSlotSummary();
+            } catch (error) {
+                console.error('Error loading existing profile data:', error);
+                document.getElementById('course-error').textContent = 'Could not load your saved profile. You can still update it, but previously saved selections may not be shown.';
+            }
+        }
+
+        function renderSelectedCourses() {
+            if (selectedCourses.length === 0) {
+                selectedCoursesContainer.innerHTML = '<span class="muted">No courses selected yet.</span>';
+                summaryCourseCount.textContent = '0';
+                return;
+            }
+
+            selectedCoursesContainer.innerHTML = selectedCourses.map((course, index) => `
+                <span class="chip">
+                    ${course.code} (${course.status})
+                    <button class="remove" type="button" data-index="${index}" aria-label="Remove course">×</button>
+                </span>
+            `).join('');
+
+            summaryCourseCount.textContent = String(selectedCourses.length);
+
+            selectedCoursesContainer.querySelectorAll('.remove').forEach(button => {
+                button.addEventListener('click', () => {
+                    const index = Number(button.dataset.index);
+                    selectedCourses.splice(index, 1);
+                    renderSelectedCourses();
+                });
+            });
+        }
+
+        function renderAvailabilityGrid() {
+            availabilityGrid.innerHTML = DAYS.map(day => `
+                <div class="day-box">
+                    <div class="day-title">${day}</div>
+                    ${TIME_BLOCKS.map(block => `
+                        <label class="slot-option">
+                            <input type="checkbox" value="${day}_${block}" />
+                            <span>${block.replace('_', '–')}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            `).join('');
+        }
+
+        function updateSlotSummary() {
+            const checked = [...document.querySelectorAll('input[type="checkbox"]:checked')].length;
+            summarySlotCount.textContent = String(checked);
+        }
+
+        document.addEventListener('change', (event) => {
+            if (event.target.matches('input[type="checkbox"]')) {
+                updateSlotSummary();
+            }
+        });
+
+        document.getElementById('add-course-btn').addEventListener('click', () => {
+            const courseId = courseSelect.value;
+            const status = courseStatus.value;
+
+            if (!courseId) {
+                document.getElementById('course-error').textContent = 'Please select a course first.';
+                return;
+            }
+
+            const courseOption = courseSelect.options[courseSelect.selectedIndex];
+            const text = courseOption.textContent;
+            const [code, title] = text.split(' — ');
+
+            const exists = selectedCourses.some(course => course.id === courseId);
+            if (exists) {
+                document.getElementById('course-error').textContent = 'This course is already selected.';
+                return;
+            }
+
+            selectedCourses.push({
+                id: courseId,
+                code,
+                title,
+                status
+            });
+
+            document.getElementById('course-error').textContent = '';
+            renderSelectedCourses();
+        });
+
+        async function saveCourseSelection() {
+            if (!selectedCourses.length) {
+                document.getElementById('course-error').textContent = 'Please add at least one course.';
+                return false;
+            }
+
+            for (const course of selectedCourses) {
+                const response = await fetch(`${API_BASE_URL}/profile/courses`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ courseId: course.id, status: course.status })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to save course selection');
+                }
+            }
+
+            const selectedCourseIds = new Set(selectedCourses.map(course => course.id));
+            for (const courseId of savedCourseIds) {
+                if (selectedCourseIds.has(courseId)) continue;
+
+                const response = await fetch(`${API_BASE_URL}/profile/courses/${encodeURIComponent(courseId)}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to remove course from your profile');
+                }
+            }
+
+            return true;
+        }
+
+        async function saveAvailabilitySelection() {
+            const selectedSlots = [...document.querySelectorAll('input[type="checkbox"]:checked')].map(input => input.value);
+
+            if (!selectedSlots.length) {
+                document.getElementById('availability-error').textContent = 'Please choose at least one time block.';
+                return false;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/profile/availability`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ timeSlots: selectedSlots })
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to save availability');
+            }
+
+            document.getElementById('availability-success').textContent = 'Availability saved successfully.';
+            return true;
+        }
+
+        document.getElementById('save-profile-btn').addEventListener('click', async () => {
+            document.getElementById('course-error').textContent = '';
+            document.getElementById('availability-error').textContent = '';
+            document.getElementById('availability-success').textContent = '';
+
+            try {
+                const coursesSaved = await saveCourseSelection();
+                const availabilitySaved = await saveAvailabilitySelection();
+
+                if (coursesSaved && availabilitySaved) {
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 600);
+                }
+            } catch (error) {
+                document.getElementById('availability-error').textContent = error.message;
+            }
+        });
+
+        async function initializeOnboarding() {
+            renderAvailabilityGrid();
+            renderSelectedCourses();
+            await loadCourses();
+            await loadExistingProfile();
+        }
+
+        initializeOnboarding();
+    </script>
+</body>
+</html>
