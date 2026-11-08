@@ -122,6 +122,10 @@ async function matchCourse(req, res) {
             .slice(0, 5);
 
         const matchingCourseIds = [...new Set(normalized.matches.map(match => match.courseId))];
+        const matchedCourses = normalized.matches.map(match => ({
+            ...candidateCourses.find(course => course.courseId === match.courseId),
+            reason: match.reason
+        }));
         let pods = [];
         if (matchingCourseIds.length) {
             const podResult = await pool.query(
@@ -173,6 +177,7 @@ async function matchCourse(req, res) {
                 discipline: normalized.discipline.trim(),
                 coreTopics: normalized.coreTopics
             },
+            matches: matchedCourses,
             pods
         });
     } catch (error) {

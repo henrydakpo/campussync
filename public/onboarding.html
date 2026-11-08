@@ -133,7 +133,7 @@
             font-weight: 600;
         }
 
-        select {
+        select, .course-search-input, .course-description-input {
             width: 100%;
             padding: 0.75rem 0.8rem;
             border: 1px solid var(--border-color);
@@ -143,9 +143,51 @@
             outline: none;
         }
 
-        select:focus {
+        select:focus, .course-search-input:focus, .course-description-input:focus {
             border-color: var(--primary);
         }
+
+        .course-search-actions {
+            display: flex;
+            gap: 0.6rem;
+            margin-top: 0.55rem;
+        }
+
+        .course-search-actions .btn { flex: 0 0 auto; }
+
+        .course-description-input {
+            margin-top: 0.6rem;
+            resize: vertical;
+        }
+
+        .course-search-notice {
+            margin-top: 0.55rem;
+            color: var(--text-muted);
+            font-size: 0.76rem;
+            line-height: 1.5;
+        }
+
+        .course-search-results {
+            display: grid;
+            gap: 0.55rem;
+            margin-top: 0.75rem;
+        }
+
+        .course-search-result {
+            display: grid;
+            gap: 0.35rem;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            background: #fff;
+        }
+
+        .course-search-result h3 { font-size: 0.88rem; }
+        .course-search-result p { color: var(--text-muted); font-size: 0.78rem; line-height: 1.45; }
+        .course-search-result .btn { justify-self: start; padding: 0.55rem 0.75rem; }
+        .course-search-result .btn:disabled { cursor: default; opacity: 0.65; }
+        .course-search-status { min-height: 1rem; margin-top: 0.6rem; color: var(--text-muted); font-size: 0.8rem; }
+        .course-search-status.error { color: #dc2626; }
 
         .chip-list {
             display: flex;
@@ -282,12 +324,20 @@
         <div class="content">
             <section class="panel">
                 <h2>1. Add your study courses</h2>
-                <p class="muted">Choose the courses you are currently learning or teaching.</p>
+                <p class="muted">Search the catalog by course code or title, or ask AI to suggest an equivalent course with an existing study pod.</p>
 
                 <div class="form-row">
                     <div class="field">
-                        <label for="course-select">Course</label>
-                        <select id="course-select"></select>
+                        <label for="course-search-input">Search course catalog</label>
+                        <input class="course-search-input" type="search" id="course-search-input" maxlength="200" placeholder="e.g. Data Structures or PSYC 301" autocomplete="off">
+                        <div class="course-search-actions">
+                            <button class="btn btn-ghost" type="button" id="ai-course-search-btn">AI Find equivalents</button>
+                        </div>
+                        <label for="course-description-input" style="margin-top: 0.7rem;">Course description or topics (optional)</label>
+                        <textarea class="course-description-input" id="course-description-input" maxlength="2000" rows="2" placeholder="Add topics to help AI make a more relevant suggestion."></textarea>
+                        <p class="course-search-notice">AI suggestions can be imperfect. Your course title and description are sent to Google Gemini; avoid personal or sensitive information.</p>
+                        <p id="course-search-status" class="course-search-status" aria-live="polite"></p>
+                        <div id="course-search-results" class="course-search-results" aria-live="polite"></div>
                     </div>
                     <div class="field">
                         <label for="course-status">Role for this course</label>
@@ -297,8 +347,6 @@
                         </select>
                     </div>
                 </div>
-
-                <button class="btn btn-primary" type="button" id="add-course-btn">Add Course</button>
 
                 <div class="chip-list" id="selected-courses"></div>
                 <div id="course-error" class="error"></div>
@@ -354,8 +402,11 @@
         const TIME_BLOCKS = ['09_12', '12_15', '15_18', '18_21'];
         const selectedCourses = [];
         const savedCourseIds = new Set();
+        let courseCatalog = [];
 
-        const courseSelect = document.getElementById('course-select');
+        const courseSearchInput = document.getElementById('course-search-input');
+        const courseSearchResults = document.getElementById('course-search-results');
+        const courseSearchStatus = document.getElementById('course-search-status');
         const courseStatus = document.getElementById('course-status');
         const selectedCoursesContainer = document.getElementById('selected-courses');
         const summaryCourseCount = document.getElementById('summary-course-count');
@@ -382,19 +433,141 @@
                     throw new Error(data.error || 'Failed to load courses');
                 }
 
-                const courses = data.courses || [];
-
-                if (!courses.length) {
-                    courseSelect.innerHTML = '<option value="">No courses available</option>';
-                } else {
-                    courseSelect.innerHTML = courses.map(course => `
-                        <option value="${course.id}">${course.course_code} — ${course.course_title}</option>
-                    `).join('');
-                }
+                courseCatalog = data.courses || [];
+                renderLocalCourseResults();
             } catch (error) {
                 console.error(error);
-                courseSelect.innerHTML = '<option value="">Could not load courses</option>';
+                courseCatalog = [];
                 document.getElementById('course-error').textContent = 'Could not load the course catalog. Please refresh and try again.';
+            }
+        }
+
+        function addCourseToSelection(course) {
+            const existing = selectedCourses.find(item => item.id === course.id);
+            if (existing) {
+                courseSearchStatus.textContent = `${course.course_code} is already selected.`;
+                courseSearchStatus.classList.remove('error');
+                return;
+            }
+
+            selectedCourses.push({
+                id: course.id,
+                code: course.course_code,
+                title: course.course_title,
+                status: courseStatus.value
+            });
+            document.getElementById('course-error').textContent = '';
+            courseSearchStatus.textContent = `${course.course_code} added to your selection. Save your profile to enroll.`;
+            courseSearchStatus.classList.remove('error');
+            renderSelectedCourses();
+            renderLocalCourseResults();
+        }
+
+        function createCourseSuggestion(course, reason, label = 'Add to selection') {
+            const card = document.createElement('article');
+            card.className = 'course-search-result';
+            const title = document.createElement('h3');
+            const courseCode = course.courseCode || course.course_code;
+            const courseTitle = course.courseTitle || course.course_title;
+            title.textContent = `${courseCode} — ${courseTitle}`;
+            const department = document.createElement('p');
+            department.textContent = course.department || 'Course catalog';
+            card.append(title, department);
+            if (reason) {
+                const matchReason = document.createElement('p');
+                matchReason.textContent = `AI suggestion: ${reason}`;
+                card.appendChild(matchReason);
+            }
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-primary';
+            const isSelected = selectedCourses.some(item => item.id === course.courseId || item.id === course.id);
+            button.textContent = isSelected ? 'Selected' : label;
+            button.disabled = isSelected;
+            button.addEventListener('click', () => addCourseToSelection({
+                id: course.courseId || course.id,
+                course_code: courseCode,
+                course_title: courseTitle
+            }));
+            card.appendChild(button);
+            return card;
+        }
+
+        function renderLocalCourseResults() {
+            const query = courseSearchInput.value.trim().toLowerCase();
+            courseSearchResults.replaceChildren();
+            if (!query) return;
+
+            const matches = courseCatalog
+                .filter(course => `${course.course_code} ${course.course_title} ${course.department}`.toLowerCase().includes(query))
+                .slice(0, 8);
+            if (!matches.length) {
+                const message = document.createElement('p');
+                message.className = 'muted';
+                message.textContent = 'No exact catalog match. Try AI Find equivalents.';
+                courseSearchResults.appendChild(message);
+                return;
+            }
+
+            matches.forEach(course => courseSearchResults.appendChild(createCourseSuggestion(course)));
+        }
+
+        async function searchCourseWithAI() {
+            const query = courseSearchInput.value.trim();
+            if (!query) {
+                courseSearchStatus.textContent = 'Enter a course title before searching.';
+                courseSearchStatus.classList.add('error');
+                return;
+            }
+
+            const button = document.getElementById('ai-course-search-btn');
+            button.disabled = true;
+            button.textContent = 'Searching...';
+            courseSearchStatus.textContent = 'Checking course equivalencies and existing study pods...';
+            courseSearchStatus.classList.remove('error');
+            courseSearchResults.replaceChildren();
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/ai/match-course`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        courseTitle: query,
+                        courseDescription: document.getElementById('course-description-input').value.trim()
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to find equivalent courses.');
+
+                const summary = document.createElement('p');
+                summary.className = 'muted';
+                summary.textContent = `AI normalized this as "${data.normalized.standardCourseName}" (${data.normalized.discipline}). Core topics: ${data.normalized.coreTopics.join(', ')}.`;
+                courseSearchResults.appendChild(summary);
+
+                const matchedCourses = Array.isArray(data.matches) ? data.matches : [];
+                if (!matchedCourses.length) {
+                    const noMatches = document.createElement('p');
+                    noMatches.className = 'muted';
+                    noMatches.textContent = 'No strongly equivalent catalog courses with existing study pods were found. Try adding more course topics or search the course catalog directly.';
+                    courseSearchResults.appendChild(noMatches);
+                } else {
+                    matchedCourses.forEach(course => {
+                        courseSearchResults.appendChild(createCourseSuggestion(
+                            course,
+                            course.reason,
+                            'Add to course selection'
+                        ));
+                    });
+                    courseSearchStatus.textContent = 'Review the AI-suggested equivalents; selecting one adds that existing course to your profile.';
+                }
+            } catch (error) {
+                console.error('Error searching course equivalents:', error);
+                courseSearchStatus.textContent = error.message;
+                courseSearchStatus.classList.add('error');
+            } finally {
+                button.disabled = false;
+                button.textContent = 'AI Find equivalents';
             }
         }
 
@@ -412,16 +585,20 @@
 
                 (data.courses || []).forEach(course => {
                     const courseId = course.course_id || course.courseId;
-                    const option = [...courseSelect.options].find(item => item.value === courseId);
-                    if (!option) return;
+                    const catalogCourse = courseCatalog.find(item => item.id === courseId);
+                    if (!catalogCourse) return;
 
                     savedCourseIds.add(courseId);
-                    const [code, title] = option.textContent.split(' — ');
                     const existing = selectedCourses.find(item => item.id === courseId);
                     if (existing) {
                         existing.status = course.status;
                     } else {
-                        selectedCourses.push({ id: courseId, code, title, status: course.status });
+                        selectedCourses.push({
+                            id: courseId,
+                            code: catalogCourse.course_code,
+                            title: catalogCourse.course_title,
+                            status: course.status
+                        });
                     }
                 });
                 renderSelectedCourses();
@@ -488,35 +665,12 @@
             }
         });
 
-        document.getElementById('add-course-btn').addEventListener('click', () => {
-            const courseId = courseSelect.value;
-            const status = courseStatus.value;
-
-            if (!courseId) {
-                document.getElementById('course-error').textContent = 'Please select a course first.';
-                return;
-            }
-
-            const courseOption = courseSelect.options[courseSelect.selectedIndex];
-            const text = courseOption.textContent;
-            const [code, title] = text.split(' — ');
-
-            const exists = selectedCourses.some(course => course.id === courseId);
-            if (exists) {
-                document.getElementById('course-error').textContent = 'This course is already selected.';
-                return;
-            }
-
-            selectedCourses.push({
-                id: courseId,
-                code,
-                title,
-                status
-            });
-
-            document.getElementById('course-error').textContent = '';
-            renderSelectedCourses();
+        courseSearchInput.addEventListener('input', () => {
+            courseSearchStatus.textContent = '';
+            courseSearchStatus.classList.remove('error');
+            renderLocalCourseResults();
         });
+        document.getElementById('ai-course-search-btn').addEventListener('click', searchCourseWithAI);
 
         async function saveCourseSelection() {
             if (!selectedCourses.length) {
