@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "prestart": "node scripts/apply-pod-workflow-migration.js",
     "start": "node server.js"
   },
   "keywords": [],
