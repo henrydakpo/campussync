@@ -731,6 +731,29 @@
         </main>
     </div>
 
+    <button id="feedback-widget-button" class="feedback-widget-button" type="button" aria-haspopup="dialog" aria-controls="feedback-dialog">
+        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+        <span>Feedback / Report Bug</span>
+    </button>
+
+    <dialog id="feedback-dialog" class="feedback-dialog" aria-labelledby="feedback-dialog-title">
+        <form id="feedback-form">
+            <div class="feedback-dialog-header">
+                <h2 id="feedback-dialog-title">Help us improve CampusSync</h2>
+                <button id="feedback-dialog-close" class="feedback-dialog-close" type="button" aria-label="Close feedback form">&times;</button>
+            </div>
+            <p class="feedback-dialog-description">What would make this more useful for your exams? Share a suggestion or report a bug.</p>
+            <label for="feedback-email">Your email <span>(optional)</span></label>
+            <input id="feedback-email" name="email" type="email" maxlength="254" autocomplete="email" placeholder="student@st.ug.edu.gh">
+            <label for="feedback-message">Your feedback or suggestion</label>
+            <textarea id="feedback-message" name="message" rows="4" maxlength="3000" required placeholder="Tell us what you think or describe the issue you encountered."></textarea>
+            <p id="feedback-status" class="feedback-status" role="status" aria-live="polite"></p>
+            <button id="feedback-submit" class="btn btn-primary feedback-submit" type="submit">Send feedback</button>
+        </form>
+    </dialog>
+
     <!-- Link your frontend JavaScript bridge -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>

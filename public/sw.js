@@ -1,4 +1,4 @@
-const CACHE_NAME = 'campussync-static-v1';
+const CACHE_NAME = 'campussync-static-v2';
 const STATIC_ASSETS = [
     '/manifest.json',
     '/styles.css',

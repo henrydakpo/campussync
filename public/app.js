@@ -1193,6 +1193,55 @@ function viewProfile(userId) {
 // Run when dashboard loads
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logout-button').addEventListener('click', logout);
+    const feedbackDialog = document.getElementById('feedback-dialog');
+    const feedbackForm = document.getElementById('feedback-form');
+    const feedbackStatus = document.getElementById('feedback-status');
+    const feedbackSubmit = document.getElementById('feedback-submit');
+
+    document.getElementById('feedback-widget-button').addEventListener('click', () => {
+        feedbackStatus.textContent = '';
+        feedbackStatus.classList.remove('error');
+        feedbackDialog.showModal();
+    });
+    document.getElementById('feedback-dialog-close').addEventListener('click', () => {
+        feedbackDialog.close();
+    });
+    feedbackDialog.addEventListener('click', event => {
+        if (event.target === feedbackDialog) feedbackDialog.close();
+    });
+    feedbackForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        feedbackStatus.textContent = 'Sending your feedback...';
+        feedbackStatus.classList.remove('error');
+        feedbackSubmit.disabled = true;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/feedback`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    email: feedbackForm.elements.email.value.trim(),
+                    message: feedbackForm.elements.message.value.trim()
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to send feedback.');
+
+            feedbackForm.reset();
+            feedbackStatus.textContent = data.message;
+            window.setTimeout(() => {
+                if (feedbackDialog.open) feedbackDialog.close();
+                feedbackStatus.textContent = '';
+            }, 1800);
+        } catch (error) {
+            console.error('Error submitting feedback:', error);
+            feedbackStatus.textContent = error.message || 'Failed to send feedback. Please try again.';
+            feedbackStatus.classList.add('error');
+        } finally {
+            feedbackSubmit.disabled = false;
+        }
+    });
+
     document.getElementById('match-profile-close').addEventListener('click', () => {
         document.getElementById('match-profile-dialog').close();
     });
