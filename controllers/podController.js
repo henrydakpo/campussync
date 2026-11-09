@@ -192,6 +192,40 @@ async function deleteStudyPod(req, res) {
     }
 }
 
+async function updatePodName(req, res) {
+    const userId = req.user.id;
+    const { podId } = req.params;
+    const { podName } = req.body;
+
+    if (!UUID_PATTERN.test(podId)) {
+        return res.status(400).json({ error: "A valid study pod ID is required." });
+    }
+    if (typeof podName !== 'string' || !podName.trim()) {
+        return res.status(400).json({ error: "Pod name is required." });
+    }
+    if (podName.trim().length > 100) {
+        return res.status(400).json({ error: "Pod name must be 100 characters or fewer." });
+    }
+
+    try {
+        const result = await pool.query(
+            `UPDATE study_pods
+             SET pod_name = $1
+             WHERE id = $2 AND created_by = $3
+             RETURNING id AS pod_id, pod_name`,
+            [podName.trim(), podId, userId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Study pod not found or you are not its organizer." });
+        }
+
+        return res.json({ success: true, pod: result.rows[0] });
+    } catch (err) {
+        console.error("Error renaming study pod:", err);
+        return res.status(500).json({ error: "Failed to rename study pod." });
+    }
+}
+
 async function requestToJoinStudyPod(req, res) {
     const userId = req.user.id;
     const { podId } = req.params;
@@ -531,6 +565,7 @@ module.exports = {
     getAvailablePods,
     discoverStudyPods,
     createStudyPod,
+    updatePodName,
     deleteStudyPod,
     requestToJoinStudyPod,
     getMembershipRequests,

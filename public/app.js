@@ -265,6 +265,13 @@ async function loadStudyPods() {
                 badge.textContent = 'Joined';
                 actions.appendChild(badge);
                 if (pod.is_creator) {
+                    const renameButton = document.createElement('button');
+                    renameButton.type = 'button';
+                    renameButton.className = 'btn btn-outline';
+                    renameButton.textContent = 'Rename pod';
+                    renameButton.addEventListener('click', () => renameStudyPod(pod.pod_id, title));
+                    actions.appendChild(renameButton);
+
                     const requestsButton = document.createElement('button');
                     requestsButton.type = 'button';
                     requestsButton.className = 'btn btn-outline';
@@ -1100,6 +1107,34 @@ async function openStudyPod(podId) {
     podCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
     podCard.classList.add('pod-card-highlight');
     window.setTimeout(() => podCard.classList.remove('pod-card-highlight'), 2200);
+}
+
+async function renameStudyPod(podId, titleElement) {
+    const podName = prompt('Enter a new name for this study pod:', titleElement.textContent);
+    if (podName === null) return;
+    if (!podName.trim()) {
+        alert('Pod name is required.');
+        return;
+    }
+    if (podName.trim().length > 100) {
+        alert('Pod name must be 100 characters or fewer.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(podId)}/name`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ podName: podName.trim() })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to rename study pod.');
+
+        titleElement.textContent = data.pod.pod_name;
+    } catch (error) {
+        console.error('Error renaming study pod:', error);
+        alert(error.message);
+    }
 }
 
 function viewProfile(userId) {
