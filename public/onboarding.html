@@ -431,6 +431,7 @@
         const TIME_BLOCKS = ['09_12', '12_15', '15_18', '18_21'];
         const selectedCourses = [];
         const savedCourseIds = new Set();
+        let profileLoaded = false;
 
         const courseSearchInput = document.getElementById('course-search-input');
         const courseSearchResults = document.getElementById('course-search-results');
@@ -726,6 +727,7 @@
                     if (checkbox) checkbox.checked = true;
                 });
                 updateSlotSummary();
+                profileLoaded = true;
             } catch (error) {
                 console.error('Error loading existing profile data:', error);
                 document.getElementById('course-error').textContent = 'Could not load your saved profile. You can still update it, but previously saved selections may not be shown.';
@@ -796,11 +798,6 @@
         document.getElementById('ai-course-search-btn').addEventListener('click', searchCourseWithAI);
 
         async function saveCourseSelection() {
-            if (!selectedCourses.length) {
-                document.getElementById('course-error').textContent = 'Please add at least one course.';
-                return false;
-            }
-
             for (const course of selectedCourses) {
                 const response = await fetch(`${API_BASE_URL}/profile/courses`, {
                     method: 'POST',
@@ -855,6 +852,16 @@
         }
 
         document.getElementById('save-profile-btn').addEventListener('click', async () => {
+            if (!selectedCourses.length) {
+                if (!confirm('You have no courses selected. Saving will remove your saved courses. Do you want to continue?')) {
+                    return;
+                }
+                if (!profileLoaded) {
+                    document.getElementById('course-error').textContent = 'Your saved courses could not be loaded, so they cannot be safely cleared. Refresh the page and try again.';
+                    return;
+                }
+            }
+
             document.getElementById('course-error').textContent = '';
             document.getElementById('availability-error').textContent = '';
             document.getElementById('availability-success').textContent = '';
