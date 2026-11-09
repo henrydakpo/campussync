@@ -25,7 +25,6 @@ async function getStudentMatches(req, res) {
                 u.full_name,
                 u.role,
                 c.id AS course_id,
-                c.course_code,
                 c.course_title,
                 uc.status AS course_status,
                 COALESCE(
@@ -44,7 +43,7 @@ async function getStudentMatches(req, res) {
                )
             WHERE uc.course_id = ANY($1)
               AND u.id != $2
-            GROUP BY u.id, u.full_name, u.role, c.id, c.course_code, c.course_title, uc.status
+            GROUP BY u.id, u.full_name, u.role, c.id, c.course_title, uc.status
             ORDER BY overlapping_slots_count DESC;
         `;
 
@@ -61,7 +60,6 @@ async function getStudentMatches(req, res) {
                 fullName: row.full_name,
                 role: row.role,
                 courseId: row.course_id,
-                courseCode: row.course_code,
                 courseTitle: row.course_title,
                 courseStatus: row.course_status,
                 overlappingSlots: row.overlapping_slots,

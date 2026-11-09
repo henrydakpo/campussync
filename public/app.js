@@ -150,7 +150,7 @@ function renderMatches(matches) {
                     <div class="score-badge">${match.compatibilityScore}% Match</div>
                 </div>
                 <div>
-                    <span class="course-tag">${match.courseCode} • ${match.courseTitle}</span>
+                    <span class="course-tag">${match.courseTitle}</span>
                     <div class="slots-section">
                         <strong>Shared Free Time:</strong><br>
                         ${slotsText}${hasOverlappingSlots ? ` (${match.overlappingSlotsCount} slots)` : ''}
@@ -158,7 +158,7 @@ function renderMatches(matches) {
                 </div>
                 <div class="card-actions">
                     <button class="btn btn-outline" onclick="viewProfile('${match.userId}')">View Profile</button>
-                    <button class="btn btn-primary" onclick="createPodForCourse('${match.courseCode}', '${match.courseId}')">Create Pod</button>
+                    <button class="btn btn-primary" onclick="createPodForCourse('${match.courseId}')">Create Pod</button>
                 </div>
             </div>
         `;
@@ -168,9 +168,10 @@ function renderMatches(matches) {
 }
 
 // 3. Action: Create a Study Pod
-async function createPodForCourse(courseCode, courseId) {
+async function createPodForCourse(courseId) {
     const token = checkAuth();
-    const podName = prompt(`Enter a name for your ${courseCode} study pod:`, `${courseCode} Study Group`);
+    const courseTitle = [...matchProfiles.values()].find(match => match.courseId === courseId)?.courseTitle || 'Course';
+    const podName = prompt(`Enter a name for your ${courseTitle} study pod:`, `${courseTitle} Study Group`);
     
     if (!podName) return;
 
@@ -199,42 +200,6 @@ async function createPodForCourse(courseCode, courseId) {
     } catch (err) {
         console.error("Error creating pod:", err);
         alert(`Error: ${err.message}`);
-    }
-}
-
-async function loadPodCourses() {
-    const courseSelect = document.getElementById('pod-course');
-    const message = document.getElementById('pods-message');
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/profile`, {
-            headers: getAuthHeaders()
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to load your courses');
-        }
-
-        courseSelect.replaceChildren();
-        const courses = data.courses || [];
-        if (courses.length === 0) {
-            courseSelect.add(new Option('Add a course to create your own pod', ''));
-            message.textContent = 'Add a course to create a pod. You can still discover and request to join pods from Find Matches or Course Catalog.';
-            return;
-        }
-
-        courseSelect.add(new Option('Select a course', ''));
-        courses.forEach(course => {
-            courseSelect.add(new Option(
-                `${course.course_code} — ${course.course_title}`,
-                course.course_id
-            ));
-        });
-    } catch (err) {
-        console.error('Error loading courses for study pods:', err);
-        courseSelect.replaceChildren(new Option('Could not load courses', ''));
-        message.textContent = err.message;
-        message.classList.add('error');
     }
 }
 
@@ -271,8 +236,18 @@ async function loadStudyPods() {
             card.appendChild(title);
 
             const course = document.createElement('p');
-            course.textContent = `${pod.course_code} — ${pod.course_title}`;
+            course.textContent = pod.course_title;
             card.appendChild(course);
+
+            if (pod.department) {
+                const department = document.createElement('p');
+                department.className = 'pod-course-department';
+                department.textContent = pod.department;
+                card.appendChild(department);
+            }
+
+            appendPodTopics(card, pod.core_topics);
+            appendCrossCampusConnection(card, pod.campuses);
 
             const creator = document.createElement('p');
             creator.textContent = `Organizer: ${pod.creator_name || 'CampusSync student'}`;
@@ -524,10 +499,6 @@ async function loadDiscoverablePods(containerId, messageId) {
         }
 
         const pods = data.pods || [];
-        if (containerId === 'catalog-pods-container') {
-            catalogPods = pods;
-            catalogPodsLoaded = true;
-        }
         renderDiscoverablePods(pods, containerId, messageId);
     } catch (err) {
         console.error('Error discovering study pods:', err);
@@ -541,42 +512,27 @@ function renderDiscoverablePods(pods, containerId, messageId) {
     const message = document.getElementById(messageId);
     if (!container || !message) return;
 
-    let visiblePods = pods;
-    if (containerId === 'catalog-pods-container') {
-        const search = document.getElementById('catalog-search').value.trim().toLowerCase();
-        const department = document.getElementById('catalog-department').value;
-        visiblePods = pods.filter(pod => {
-            const matchesText = `${pod.course_code} ${pod.course_title} ${pod.department}`.toLowerCase().includes(search);
-            return matchesText && (!department || pod.department === department);
-        });
-    }
-
     container.replaceChildren();
     message.classList.remove('error');
-    message.textContent = visiblePods.length
+    message.textContent = pods.length
         ? ''
-        : pods.length
-            ? 'No study pods match this course search or department.'
-            : 'No study pods have been created yet. Start one for a course you enjoy.';
+        : 'No study pods have been created yet. Start one for a course you enjoy.';
 
-    visiblePods.forEach(pod => {
+    pods.forEach(pod => {
         const card = document.createElement('article');
         card.className = 'pod-card';
 
         const title = document.createElement('h2');
         title.textContent = pod.pod_name;
         const course = document.createElement('p');
-        course.textContent = `${pod.course_code} — ${pod.course_title}`;
+        course.className = 'pod-course-title';
+        course.textContent = pod.course_title;
         const organizer = document.createElement('p');
         organizer.textContent = `Organizer: ${pod.creator_name || 'CampusSync student'}`;
         const members = document.createElement('p');
         members.textContent = `Members: ${pod.current_members_count} / ${pod.max_members}`;
         const actions = document.createElement('div');
         actions.className = 'pod-actions';
-        const campuses = document.createElement('p');
-        campuses.textContent = pod.campuses && pod.campuses.length
-            ? `Campuses represented: ${pod.campuses.join(', ')}`
-            : 'Campus information unavailable';
         const reason = document.createElement('p');
         reason.className = 'course-match-reason';
         reason.textContent = pod.match_reason ? `Suggested because: ${pod.match_reason}` : '';
@@ -605,15 +561,42 @@ function renderDiscoverablePods(pods, containerId, messageId) {
                         ? 'Request again'
                         : 'Request to join';
             requestButton.disabled = pod.is_full || pod.request_status === 'pending';
-            requestButton.addEventListener('click', () => joinStudyPod(pod.pod_id, message));
+            requestButton.addEventListener('click', () => joinStudyPod(pod.pod_id, message, pod.course_id));
             actions.appendChild(requestButton);
         }
 
-        card.append(title, course, organizer, members);
-        if (containerId === 'course-match-pods-container') card.append(campuses, reason);
+        card.append(title, course);
+        if (pod.department) {
+            const department = document.createElement('p');
+            department.className = 'pod-course-department';
+            department.textContent = pod.department;
+            card.appendChild(department);
+        }
+        appendPodTopics(card, pod.core_topics);
+        appendCrossCampusConnection(card, pod.campuses);
+        card.append(organizer, members);
+        if (containerId === 'course-match-pods-container' && pod.match_reason) card.append(reason);
         card.append(actions);
         container.appendChild(card);
     });
+}
+
+function appendPodTopics(container, topics) {
+    if (!Array.isArray(topics) || topics.length === 0) return;
+    const focus = document.createElement('p');
+    focus.className = 'pod-core-topics';
+    const label = document.createElement('strong');
+    label.textContent = 'Core focus: ';
+    focus.append(label, document.createTextNode(topics.join(', ')));
+    container.appendChild(focus);
+}
+
+function appendCrossCampusConnection(container, campuses) {
+    if (!Array.isArray(campuses) || campuses.length === 0) return;
+    const badge = document.createElement('p');
+    badge.className = 'cross-campus-badge';
+    badge.textContent = `Students from ${campuses.length} ${campuses.length === 1 ? 'university' : 'universities'} in this pod (${campuses.join(', ')})`;
+    container.appendChild(badge);
 }
 
 async function findEquivalentCoursePods(form) {
@@ -625,7 +608,7 @@ async function findEquivalentCoursePods(form) {
     summary.classList.add('hidden');
     document.getElementById('course-match-pods-container').replaceChildren();
     status.classList.remove('error');
-    status.textContent = 'Checking course equivalencies...';
+    status.textContent = 'AI is normalizing your course and searching across universities...';
     podsMessage.textContent = '';
     submit.disabled = true;
 
@@ -652,11 +635,16 @@ async function findEquivalentCoursePods(form) {
         summary.classList.remove('hidden');
 
         if (data.pods.length) {
-            status.textContent = 'These are AI-suggested equivalents, not verified course equivalencies.';
+            status.textContent = 'These are AI-suggested equivalents, not verified course equivalencies. Pod organizers may need to approve join requests.';
             renderDiscoverablePods(data.pods, 'course-match-pods-container', 'course-match-pods-message');
         } else {
-            status.textContent = 'No existing study pods were found for a strongly equivalent course. The normalized title is a suggestion, not a confirmed equivalency.';
-            podsMessage.textContent = '';
+            status.textContent = 'No existing pod was found for a strongly equivalent course. The normalized title is a suggestion, not a confirmed equivalency.';
+            podsMessage.textContent = 'You can create a national study pod from onboarding.';
+            const createLink = document.createElement('a');
+            createLink.className = 'btn btn-primary';
+            createLink.href = 'onboarding.html';
+            createLink.textContent = 'Create a national study pod';
+            document.getElementById('course-match-pods-container').appendChild(createLink);
         }
     } catch (error) {
         console.error('Error finding equivalent course pods:', error);
@@ -667,8 +655,20 @@ async function findEquivalentCoursePods(form) {
     }
 }
 
-async function joinStudyPod(podId, feedbackElement = document.getElementById('pods-message')) {
+async function joinStudyPod(podId, feedbackElement = document.getElementById('pods-message'), courseId) {
     try {
+        if (courseId) {
+            const enrollmentResponse = await fetch(`${API_BASE_URL}/profile/courses`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ courseId, status: 'learning' })
+            });
+            const enrollmentData = await enrollmentResponse.json();
+            if (!enrollmentResponse.ok) {
+                throw new Error(enrollmentData.error || 'Could not add this course to your profile.');
+            }
+        }
+
         const response = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(podId)}/join`, {
             method: 'POST',
             headers: getAuthHeaders()
@@ -958,7 +958,7 @@ const DASHBOARD_VIEWS = {
     matches: { id: 'matches-view', title: 'Compatible Study Partners' },
     pods: { id: 'pods-view', title: 'My Study Pods' },
     schedule: { id: 'schedule-view', title: 'My Schedule' },
-    catalog: { id: 'catalog-view', title: 'Course Catalog' },
+    catalog: { id: 'catalog-view', title: 'AI Course Finder' },
     settings: { id: 'settings-view', title: 'Settings' }
 };
 
@@ -1003,71 +1003,6 @@ async function loadStudentSchedule() {
             : 'No availability saved yet. Add your free time from Update courses & availability.';
     } catch (err) {
         console.error('Error loading schedule:', err);
-        message.textContent = err.message;
-        message.classList.add('error');
-    }
-}
-
-let catalogCourses = [];
-let catalogPods = [];
-let catalogPodsLoaded = false;
-
-function renderCourseCatalog() {
-    const grid = document.getElementById('catalog-grid');
-    const search = document.getElementById('catalog-search').value.trim().toLowerCase();
-    const department = document.getElementById('catalog-department').value;
-    grid.replaceChildren();
-
-    const filteredCourses = catalogCourses.filter(course => {
-        const matchesText = `${course.course_code} ${course.course_title} ${course.department}`.toLowerCase().includes(search);
-        return matchesText && (!department || course.department === department);
-    });
-
-    filteredCourses.forEach(course => {
-        const card = document.createElement('article');
-        card.className = 'catalog-card';
-        const title = document.createElement('h2');
-        title.textContent = course.course_title;
-        const departmentName = document.createElement('p');
-        departmentName.textContent = course.department;
-        card.append(title, departmentName);
-        grid.appendChild(card);
-    });
-
-    const message = document.getElementById('catalog-message');
-    message.classList.remove('error');
-    message.textContent = filteredCourses.length
-        ? `${filteredCourses.length} course${filteredCourses.length === 1 ? '' : 's'}`
-        : 'No courses match your search.';
-
-    if (catalogPodsLoaded) {
-        renderDiscoverablePods(catalogPods, 'catalog-pods-container', 'catalog-pods-message');
-    }
-}
-
-async function loadFullCourseCatalog() {
-    const message = document.getElementById('catalog-message');
-    message.textContent = 'Loading course catalog...';
-    message.classList.remove('error');
-    try {
-        const response = await fetch(`${API_BASE_URL}/profile/courses`, {
-            headers: getAuthHeaders()
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to load course catalog');
-        }
-
-        catalogCourses = data.courses || [];
-        const departments = [...new Set(catalogCourses.map(course => course.department))].sort();
-        const departmentSelect = document.getElementById('catalog-department');
-        const selectedDepartment = departmentSelect.value;
-        departmentSelect.replaceChildren(new Option('All departments', ''));
-        departments.forEach(name => departmentSelect.add(new Option(name, name)));
-        departmentSelect.value = departments.includes(selectedDepartment) ? selectedDepartment : '';
-        renderCourseCatalog();
-    } catch (err) {
-        console.error('Error loading course catalog:', err);
         message.textContent = err.message;
         message.classList.add('error');
     }
@@ -1136,16 +1071,13 @@ function showDashboardView(viewName) {
     });
 
     if (selectedView === 'pods') {
-        return Promise.all([loadPodCourses(), loadStudyPods()]);
+        return loadStudyPods();
     } else if (selectedView === 'matches') {
         return loadDiscoverablePods('matches-pods-container', 'matches-pods-message');
     } else if (selectedView === 'schedule') {
         return loadStudentSchedule();
     } else if (selectedView === 'catalog') {
-        return Promise.all([
-            loadFullCourseCatalog(),
-            loadDiscoverablePods('catalog-pods-container', 'catalog-pods-message')
-        ]);
+        return loadDiscoverablePods('catalog-pods-container', 'catalog-pods-message');
     } else if (selectedView === 'settings') {
         return loadUserSettings();
     }
@@ -1180,7 +1112,7 @@ function viewProfile(userId) {
         : profile.role === 'both'
             ? 'Student and Peer Tutor'
             : 'Student Seeking Help';
-    document.getElementById('match-profile-course').textContent = `${profile.courseCode} — ${profile.courseTitle}`;
+    document.getElementById('match-profile-course').textContent = profile.courseTitle;
     const slots = profile.overlappingSlots || [];
     document.getElementById('match-profile-availability').textContent = slots.length
         ? slots.map(slot => slot.replace(/_/g, ' ')).join(', ')
@@ -1301,45 +1233,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    document.getElementById('catalog-search').addEventListener('input', renderCourseCatalog);
-    document.getElementById('catalog-department').addEventListener('change', renderCourseCatalog);
     document.getElementById('course-match-form').addEventListener('submit', event => {
         event.preventDefault();
         findEquivalentCoursePods(event.currentTarget);
-    });
-
-    document.getElementById('create-pod-form').addEventListener('submit', async event => {
-        event.preventDefault();
-        const form = event.currentTarget;
-        const formData = new FormData(form);
-        const message = document.getElementById('pods-message');
-        message.textContent = '';
-        message.classList.remove('error');
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/pods`, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({
-                    podName: formData.get('podName'),
-                    courseId: formData.get('courseId'),
-                    maxMembers: Number(formData.get('maxMembers'))
-                })
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to create study pod');
-            }
-
-            form.reset();
-            document.getElementById('pod-max-members').value = '5';
-            message.textContent = 'Study pod created. You are its first member.';
-            await loadStudyPods();
-        } catch (err) {
-            console.error('Error creating study pod:', err);
-            message.textContent = err.message;
-            message.classList.add('error');
-        }
     });
 
     document.getElementById('pods-container').addEventListener('submit', async event => {

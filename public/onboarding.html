@@ -133,7 +133,7 @@
             font-weight: 600;
         }
 
-        select, .course-search-input, .course-description-input {
+        .course-search-input, .course-description-input {
             width: 100%;
             padding: 0.75rem 0.8rem;
             border: 1px solid var(--border-color);
@@ -143,9 +143,36 @@
             outline: none;
         }
 
-        select:focus, .course-search-input:focus, .course-description-input:focus {
+        .course-search-input:focus, .course-description-input:focus {
             border-color: var(--primary);
         }
+
+        .course-status-field {
+            padding: 0;
+            border: 0;
+        }
+
+        .course-status-field legend {
+            margin-bottom: 0.45rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .course-status-options { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+        .course-status-option {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin: 0;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.6rem;
+            color: var(--text-main);
+            cursor: pointer;
+        }
+        .course-status-option:has(input:checked) { border-color: var(--primary); background: #eef2ff; }
+        .course-status-option input { accent-color: var(--primary); }
 
         .course-search-actions {
             display: flex;
@@ -323,28 +350,30 @@
 
         <div class="content">
             <section class="panel">
-                <h2>1. Add your study courses</h2>
-                <p class="muted">Search the catalog by course code or title, ask AI to suggest an equivalent course, or create a nationwide study pod when no existing pod fits.</p>
+                <h2>1. Find your course with AI</h2>
+                <p class="muted">Describe your course in your own words. CampusSync will normalize it and look for strong study pod matches across universities.</p>
 
                 <div class="form-row">
                     <div class="field">
-                        <label for="course-search-input">Search course catalog</label>
-                        <input class="course-search-input" type="search" id="course-search-input" maxlength="200" placeholder="e.g. Data Structures or PSYC 301" autocomplete="off">
+                        <label for="course-search-input">What course are you studying?</label>
+                        <input class="course-search-input" type="text" id="course-search-input" maxlength="200" placeholder="e.g. intro to python and basic coding" autocomplete="off">
                         <div class="course-search-actions">
-                            <button class="btn btn-ghost" type="button" id="ai-course-search-btn">AI Find equivalents</button>
+                            <button class="btn btn-ghost" type="button" id="ai-course-search-btn">Find study pods</button>
                         </div>
                         <label for="course-description-input" style="margin-top: 0.7rem;">Course description or topics (optional)</label>
                         <textarea class="course-description-input" id="course-description-input" maxlength="2000" rows="2" placeholder="Add topics to help AI make a more relevant suggestion."></textarea>
-                        <p class="course-search-notice">AI suggestions can be imperfect. Your course title and description are sent to Google Gemini; avoid personal or sensitive information.</p>
+                        <p class="course-search-notice">AI suggestions can be imperfect. Your course title and description are sent to Google Gemini; avoid personal or sensitive information. Joining an existing pod may require organizer approval.</p>
                         <p id="course-search-status" class="course-search-status" aria-live="polite"></p>
                         <div id="course-search-results" class="course-search-results" aria-live="polite"></div>
                     </div>
                     <div class="field">
-                        <label for="course-status">Role for this course</label>
-                        <select id="course-status">
-                            <option value="learning">Learning</option>
-                            <option value="teaching">Teaching</option>
-                        </select>
+                        <fieldset class="course-status-field">
+                            <legend>For this course, I am:</legend>
+                            <div class="course-status-options">
+                                <label class="course-status-option"><input name="course-status" type="radio" value="learning" checked> Learning</label>
+                                <label class="course-status-option"><input name="course-status" type="radio" value="teaching"> Teaching</label>
+                            </div>
+                        </fieldset>
                     </div>
                 </div>
 
@@ -402,16 +431,18 @@
         const TIME_BLOCKS = ['09_12', '12_15', '15_18', '18_21'];
         const selectedCourses = [];
         const savedCourseIds = new Set();
-        let courseCatalog = [];
 
         const courseSearchInput = document.getElementById('course-search-input');
         const courseSearchResults = document.getElementById('course-search-results');
         const courseSearchStatus = document.getElementById('course-search-status');
-        const courseStatus = document.getElementById('course-status');
         const selectedCoursesContainer = document.getElementById('selected-courses');
         const summaryCourseCount = document.getElementById('summary-course-count');
         const summarySlotCount = document.getElementById('summary-slot-count');
         const availabilityGrid = document.getElementById('availability-grid');
+
+        function getCourseStatus() {
+            return document.querySelector('input[name="course-status"]:checked').value;
+        }
 
         function getAuthHeaders() {
             return {
@@ -433,65 +464,10 @@
                     throw new Error(data.error || 'Failed to load courses');
                 }
 
-                courseCatalog = data.courses || [];
-                renderLocalCourseResults();
             } catch (error) {
                 console.error(error);
-                courseCatalog = [];
                 document.getElementById('course-error').textContent = 'Could not load the course catalog. Please refresh and try again.';
             }
-        }
-
-        function addCourseToSelection(course) {
-            const existing = selectedCourses.find(item => item.id === course.id);
-            if (existing) {
-                courseSearchStatus.textContent = `${course.course_code} is already selected.`;
-                courseSearchStatus.classList.remove('error');
-                return;
-            }
-
-            selectedCourses.push({
-                id: course.id,
-                code: course.course_code,
-                title: course.course_title,
-                status: courseStatus.value
-            });
-            document.getElementById('course-error').textContent = '';
-            courseSearchStatus.textContent = `${course.course_code} added to your selection. Save your profile to enroll.`;
-            courseSearchStatus.classList.remove('error');
-            renderSelectedCourses();
-            renderLocalCourseResults();
-        }
-
-        function createCourseSuggestion(course, reason, label = 'Add to selection') {
-            const card = document.createElement('article');
-            card.className = 'course-search-result';
-            const title = document.createElement('h3');
-            const courseCode = course.courseCode || course.course_code;
-            const courseTitle = course.courseTitle || course.course_title;
-            title.textContent = `${courseCode} — ${courseTitle}`;
-            const department = document.createElement('p');
-            department.textContent = course.department || 'Course catalog';
-            card.append(title, department);
-            if (reason) {
-                const matchReason = document.createElement('p');
-                matchReason.textContent = `AI suggestion: ${reason}`;
-                card.appendChild(matchReason);
-            }
-
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'btn btn-primary';
-            const isSelected = selectedCourses.some(item => item.id === course.courseId || item.id === course.id);
-            button.textContent = isSelected ? 'Selected' : label;
-            button.disabled = isSelected;
-            button.addEventListener('click', () => addCourseToSelection({
-                id: course.courseId || course.id,
-                course_code: courseCode,
-                course_title: courseTitle
-            }));
-            card.appendChild(button);
-            return card;
         }
 
         function createExistingPodSuggestion(pod, container) {
@@ -503,8 +479,28 @@
             const title = document.createElement('h3');
             title.textContent = pod.pod_name || `${pod.course_title} Study Pod`;
             const details = document.createElement('p');
-            details.textContent = `${pod.course_code || 'National course'} — ${pod.course_title || 'Study pod'}`;
+            details.textContent = pod.course_title || 'Study pod';
             card.append(title, details);
+            if (pod.department) {
+                const department = document.createElement('p');
+                department.textContent = pod.department;
+                card.appendChild(department);
+            }
+            if (Array.isArray(pod.core_topics) && pod.core_topics.length) {
+                const topics = document.createElement('p');
+                topics.textContent = `Core focus: ${pod.core_topics.join(', ')}`;
+                card.appendChild(topics);
+            }
+            if (pod.match_reason) {
+                const reason = document.createElement('p');
+                reason.textContent = `Suggested because: ${pod.match_reason}`;
+                card.appendChild(reason);
+            }
+            if (pod.campuses && pod.campuses.length) {
+                const campuses = document.createElement('p');
+                campuses.textContent = `Students from ${pod.campuses.length} ${pod.campuses.length === 1 ? 'university' : 'universities'} in this pod (${pod.campuses.join(', ')})`;
+                card.appendChild(campuses);
+            }
 
             const button = document.createElement('button');
             button.type = 'button';
@@ -520,8 +516,30 @@
             button.disabled = alreadyMember || requestPending || isFull;
             button.addEventListener('click', async () => {
                 button.disabled = true;
-                button.textContent = 'Sending request...';
+                button.textContent = 'Saving course...';
                 try {
+                    if (pod.course_id) {
+                        const enrollmentResponse = await fetch(`${API_BASE_URL}/profile/courses`, {
+                            method: 'POST',
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({ courseId: pod.course_id, status: getCourseStatus() })
+                        });
+                        const enrollmentData = await enrollmentResponse.json();
+                        if (!enrollmentResponse.ok) {
+                            throw new Error(enrollmentData.error || 'Could not add this course to your profile.');
+                        }
+                        savedCourseIds.add(pod.course_id);
+                        if (!selectedCourses.some(course => course.id === pod.course_id)) {
+                            selectedCourses.push({
+                                id: pod.course_id,
+                                title: pod.course_title || 'Study pod course',
+                                status: getCourseStatus()
+                            });
+                            renderSelectedCourses();
+                        }
+                    }
+
+                    button.textContent = 'Sending join request...';
                     const response = await fetch(`${API_BASE_URL}/pods/${encodeURIComponent(podId)}/join`, {
                         method: 'POST',
                         headers: getAuthHeaders()
@@ -529,6 +547,7 @@
                     const data = await response.json();
                     if (!response.ok) throw new Error(data.error || 'Could not request to join this pod.');
                     button.textContent = data.requestStatus === 'pending' ? 'Request pending' : 'You are a member';
+                    button.disabled = data.requestStatus === 'pending' || data.success;
                     courseSearchStatus.textContent = data.message || 'Your request was sent to the pod organizer.';
                 } catch (error) {
                     button.disabled = false;
@@ -554,7 +573,7 @@
                     body: JSON.stringify({
                         courseTitle: query,
                         courseDescription,
-                        courseStatus: courseStatus.value,
+                        courseStatus: getCourseStatus(),
                         createPod: true
                     })
                 });
@@ -577,14 +596,11 @@
                 if (!selectedCourses.some(item => item.id === course.id)) {
                     selectedCourses.push({
                         id: course.id,
-                        code: course.course_code,
                         title: course.course_title,
-                        status: courseStatus.value
+                        status: getCourseStatus()
                     });
                 }
-                if (!courseCatalog.some(item => item.id === course.id)) courseCatalog.push(course);
                 renderSelectedCourses();
-                renderLocalCourseResults();
 
                 const notice = document.createElement('p');
                 notice.className = 'success';
@@ -594,6 +610,10 @@
                 podDetails.className = 'muted';
                 podDetails.textContent = `${data.pod.pod_name} is ready. Share it with students nationwide so they can discover and request to join.`;
                 courseSearchResults.appendChild(podDetails);
+                const topics = document.createElement('p');
+                topics.className = 'muted';
+                topics.textContent = `Core focus: ${data.coreTopics.join(', ')}`;
+                courseSearchResults.appendChild(topics);
                 courseSearchStatus.textContent = 'Course saved to your profile and you are the pod’s first member.';
             } catch (error) {
                 console.error('Error creating national study pod:', error);
@@ -602,25 +622,6 @@
                 button.disabled = false;
                 button.textContent = 'Create national study pod';
             }
-        }
-
-        function renderLocalCourseResults() {
-            const query = courseSearchInput.value.trim().toLowerCase();
-            courseSearchResults.replaceChildren();
-            if (!query) return;
-
-            const matches = courseCatalog
-                .filter(course => `${course.course_code} ${course.course_title} ${course.department}`.toLowerCase().includes(query))
-                .slice(0, 8);
-            if (!matches.length) {
-                const message = document.createElement('p');
-                message.className = 'muted';
-                message.textContent = 'No exact catalog match. Try AI Find equivalents.';
-                courseSearchResults.appendChild(message);
-                return;
-            }
-
-            matches.forEach(course => courseSearchResults.appendChild(createCourseSuggestion(course)));
         }
 
         async function searchCourseWithAI() {
@@ -634,7 +635,7 @@
             const button = document.getElementById('ai-course-search-btn');
             button.disabled = true;
             button.textContent = 'Searching...';
-            courseSearchStatus.textContent = 'Checking course equivalencies and existing study pods...';
+            courseSearchStatus.textContent = 'AI is normalizing your course and searching across universities...';
             courseSearchStatus.classList.remove('error');
             courseSearchResults.replaceChildren();
 
@@ -652,42 +653,34 @@
 
                 const summary = document.createElement('p');
                 summary.className = 'muted';
-                summary.textContent = `AI normalized this as "${data.normalized.standardCourseName}" (${data.normalized.discipline}). Core topics: ${data.normalized.coreTopics.join(', ')}.`;
+                summary.textContent = `Normalized course: ${data.normalized.standardCourseName} · ${data.normalized.discipline}. Core topics: ${data.normalized.coreTopics.join(', ')}.`;
                 courseSearchResults.appendChild(summary);
 
-                const matchedCourses = Array.isArray(data.matches) ? data.matches : [];
-                if (!matchedCourses.length) {
+                const matchingPods = Array.isArray(data.pods) ? data.pods : [];
+                if (!matchingPods.length) {
                     const noMatches = document.createElement('p');
                     noMatches.className = 'muted';
-                    noMatches.textContent = 'No strongly equivalent catalog courses with existing study pods were found. Try adding more course topics or search the course catalog directly.';
+                    noMatches.textContent = 'No strongly equivalent study pods were found. You can create a national pod for this course.';
                     courseSearchResults.appendChild(noMatches);
 
-                    if (!Array.isArray(data.pods) || data.pods.length === 0) {
-                        courseSearchStatus.textContent = 'No equivalent pod was found. You can create a nationwide pod and invite other students.';
-                        const createButton = document.createElement('button');
-                        createButton.type = 'button';
-                        createButton.className = 'btn btn-primary national-pod-create';
-                        createButton.textContent = 'Create national study pod';
-                        createButton.addEventListener('click', () => createNationalPod(
-                            query,
-                            document.getElementById('course-description-input').value.trim(),
-                            createButton
-                        ));
-                        courseSearchResults.appendChild(createButton);
-                        const note = document.createElement('p');
-                        note.className = 'muted';
-                        note.textContent = 'You will be the first member. The pod will be discoverable to students nationwide.';
-                        courseSearchResults.appendChild(note);
-                    }
+                    courseSearchStatus.textContent = 'No existing pod was found. Create a national pod to get started.';
+                    const createButton = document.createElement('button');
+                    createButton.type = 'button';
+                    createButton.className = 'btn btn-primary national-pod-create';
+                    createButton.textContent = 'Create national study pod';
+                    createButton.addEventListener('click', () => createNationalPod(
+                        query,
+                        document.getElementById('course-description-input').value.trim(),
+                        createButton
+                    ));
+                    courseSearchResults.appendChild(createButton);
+                    const note = document.createElement('p');
+                    note.className = 'muted';
+                    note.textContent = 'You will be the first member. Students at all supported universities can discover and request to join.';
+                    courseSearchResults.appendChild(note);
                 } else {
-                    matchedCourses.forEach(course => {
-                        courseSearchResults.appendChild(createCourseSuggestion(
-                            course,
-                            course.reason,
-                            'Add to course selection'
-                        ));
-                    });
-                    courseSearchStatus.textContent = 'Review the AI-suggested equivalents; selecting one adds that existing course to your profile.';
+                    matchingPods.forEach(pod => createExistingPodSuggestion(pod, courseSearchResults));
+                    courseSearchStatus.textContent = 'Review the suggested pods. Sending a join request adds the course to your profile; pod organizers may need to approve it.';
                 }
             } catch (error) {
                 console.error('Error searching course equivalents:', error);
@@ -695,7 +688,7 @@
                 courseSearchStatus.classList.add('error');
             } finally {
                 button.disabled = false;
-                button.textContent = 'AI Find equivalents';
+                button.textContent = 'Find study pods';
             }
         }
 
@@ -713,9 +706,6 @@
 
                 (data.courses || []).forEach(course => {
                     const courseId = course.course_id || course.courseId;
-                    const catalogCourse = courseCatalog.find(item => item.id === courseId);
-                    if (!catalogCourse) return;
-
                     savedCourseIds.add(courseId);
                     const existing = selectedCourses.find(item => item.id === courseId);
                     if (existing) {
@@ -723,8 +713,7 @@
                     } else {
                         selectedCourses.push({
                             id: courseId,
-                            code: catalogCourse.course_code,
-                            title: catalogCourse.course_title,
+                            title: course.course_title,
                             status: course.status
                         });
                     }
@@ -752,7 +741,7 @@
 
             selectedCoursesContainer.innerHTML = selectedCourses.map((course, index) => `
                 <span class="chip">
-                    ${course.code} (${course.status})
+                    ${course.title} (${course.status})
                     <button class="remove" type="button" data-index="${index}" aria-label="Remove course">×</button>
                 </span>
             `).join('');
@@ -796,7 +785,13 @@
         courseSearchInput.addEventListener('input', () => {
             courseSearchStatus.textContent = '';
             courseSearchStatus.classList.remove('error');
-            renderLocalCourseResults();
+            courseSearchResults.replaceChildren();
+        });
+        courseSearchInput.addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                searchCourseWithAI();
+            }
         });
         document.getElementById('ai-course-search-btn').addEventListener('click', searchCourseWithAI);
 
@@ -887,7 +882,6 @@
         async function initializeOnboarding() {
             renderAvailabilityGrid();
             renderSelectedCourses();
-            await loadCourses();
             await loadExistingProfile();
         }
 

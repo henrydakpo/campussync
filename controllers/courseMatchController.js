@@ -8,7 +8,7 @@ const MAX_CANDIDATE_COURSES = 100;
 
 let aiClient;
 
-async function createNationalCoursePod(userId, standardCourseName, discipline, courseStatus) {
+async function createNationalCoursePod(userId, standardCourseName, discipline, coreTopics, courseStatus) {
     const courseTitle = standardCourseName.trim().replace(/\s+/g, ' ');
     const department = discipline.trim().replace(/\s+/g, ' ');
     if (!courseTitle || courseTitle.length > 200 || /[\u0000-\u001f\u007f]/.test(courseTitle)) {
@@ -31,7 +31,7 @@ async function createNationalCoursePod(userId, standardCourseName, discipline, c
         const existing = await client.query(
             `SELECT pod.id AS pod_id, pod.pod_name, pod.max_members,
                     pod.created_by = $2 AS is_creator,
-                    course.id AS course_id, course.course_code,
+                    course.id AS course_id,
                     course.course_title, course.department,
                     EXISTS (
                         SELECT 1 FROM pod_members member
@@ -66,7 +66,7 @@ async function createNationalCoursePod(userId, standardCourseName, discipline, c
             const existingPod = await client.query(
                 `SELECT pod.id AS pod_id, pod.pod_name, pod.max_members,
                         pod.created_by = $2 AS is_creator,
-                        course.id AS course_id, course.course_code,
+                        course.id AS course_id,
                         course.course_title, course.department,
                         EXISTS (
                             SELECT 1 FROM pod_members member
@@ -112,6 +112,12 @@ async function createNationalCoursePod(userId, standardCourseName, discipline, c
         }
 
         const course = courseResult.rows[0];
+        await client.query(
+            `UPDATE courses
+             SET core_topics = CASE WHEN cardinality(core_topics) = 0 THEN $1 ELSE core_topics END
+             WHERE id = $2`,
+            [coreTopics, course.id]
+        );
         const podResult = await client.query(
             `INSERT INTO study_pods (pod_name, course_id, created_by, max_members)
              VALUES ($1, $2, $3, 20)
@@ -177,7 +183,7 @@ async function matchCourse(req, res) {
                 [req.user.id]
             ),
             pool.query(
-                `SELECT course.id, course.course_code, course.course_title, course.department
+                `SELECT course.id, course.course_title, course.department
                  FROM courses course
                  WHERE EXISTS (SELECT 1 FROM study_pods pod WHERE pod.course_id = course.id)
                  ORDER BY (SELECT COUNT(*) FROM study_pods pod WHERE pod.course_id = course.id) DESC,
@@ -199,9 +205,8 @@ async function matchCourse(req, res) {
         return res.status(503).json({ error: 'AI course matching is not configured. Add GEMINI_API_KEY to the server environment.' });
     }
 
-    const candidateCourses = candidates.map(({ id, course_code, course_title, department }) => ({
+    const candidateCourses = candidates.map(({ id, course_title, department }) => ({
         courseId: id,
-        courseCode: course_code,
         courseTitle: course_title,
         department
     }));
@@ -259,8 +264,11 @@ async function matchCourse(req, res) {
 
         normalized.coreTopics = normalized.coreTopics
             .filter(topic => typeof topic === 'string' && topic.trim())
-            .slice(0, 3)
-            .map(topic => topic.trim());
+            .slice(0, 5)
+            .map(topic => topic.trim().slice(0, 120));
+        if (normalized.coreTopics.length === 0) {
+            throw new Error('Gemini returned no usable core topics.');
+        }
         normalized.matches = normalized.matches
             .filter(match => match
                 && typeof match.courseId === 'string'
@@ -283,16 +291,16 @@ async function matchCourse(req, res) {
                     pod.created_at,
                     pod.created_by = $1 AS is_creator,
                     course.id AS course_id,
-                    course.course_code,
                     course.course_title,
                     course.department,
+                    course.core_topics,
                     creator.full_name AS creator_name,
                     COUNT(DISTINCT member.user_id)::int AS current_members_count,
                     COALESCE(BOOL_OR(member.user_id = $1), FALSE) AS is_member,
                     MAX(request.status) AS request_status,
                     COALESCE(
-                        ARRAY_AGG(DISTINCT university.name)
-                            FILTER (WHERE university.name IS NOT NULL),
+                        ARRAY_AGG(DISTINCT university.short_code ORDER BY university.short_code)
+                            FILTER (WHERE university.short_code IS NOT NULL),
                         ARRAY[]::text[]
                     ) AS campuses
                  FROM study_pods pod
@@ -331,6 +339,7 @@ async function matchCourse(req, res) {
                     req.user.id,
                     normalized.standardCourseName,
                     normalized.discipline,
+                    normalized.coreTopics,
                     body.courseStatus || 'learning'
                 );
             } catch (error) {
@@ -346,8 +355,13 @@ async function matchCourse(req, res) {
             return res.status(201).json({
                 success: true,
                 created: true,
-                course: result.course,
+                course: {
+                    id: result.course.id,
+                    course_title: result.course.course_title,
+                    department: result.course.department
+                },
                 pod: result.pod,
+                coreTopics: normalized.coreTopics,
                 message: 'National study pod created. You are its first member, and the pod is discoverable by students nationwide.'
             });
         }

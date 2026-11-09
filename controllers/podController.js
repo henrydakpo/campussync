@@ -14,10 +14,16 @@ async function getAvailablePods(req, res) {
                 p.created_at,
                 p.created_by = $1 AS is_creator,
                 c.id AS course_id,
-                c.course_code,
                 c.course_title,
+                c.department,
+                c.core_topics,
                 u.full_name AS creator_name,
                 COUNT(pm.user_id)::int AS current_members_count,
+                COALESCE(
+                    ARRAY_AGG(DISTINCT university.short_code ORDER BY university.short_code)
+                        FILTER (WHERE university.short_code IS NOT NULL),
+                    ARRAY[]::text[]
+                ) AS campuses,
                 BOOL_OR(pm.user_id = $1) AS is_member,
                 MAX(pr.status) AS request_status,
                 (SELECT COUNT(*)::int
@@ -28,6 +34,8 @@ async function getAvailablePods(req, res) {
              LEFT JOIN user_courses uc ON uc.course_id = c.id AND uc.user_id = $1
              LEFT JOIN users u ON u.id = p.created_by
              LEFT JOIN pod_members pm ON pm.pod_id = p.id
+             LEFT JOIN users campus_member ON campus_member.id = pm.user_id
+             LEFT JOIN universities university ON university.id = campus_member.university_id
              LEFT JOIN pod_membership_requests pr ON pr.pod_id = p.id AND pr.user_id = $1
              WHERE uc.user_id = $1
                 OR p.created_by = $1
@@ -65,11 +73,16 @@ async function discoverStudyPods(req, res) {
                 p.created_at,
                 p.created_by = $1 AS is_creator,
                 c.id AS course_id,
-                c.course_code,
                 c.course_title,
                 c.department,
+                c.core_topics,
                 u.full_name AS creator_name,
                 COUNT(pm.user_id)::int AS current_members_count,
+                COALESCE(
+                    ARRAY_AGG(DISTINCT university.short_code ORDER BY university.short_code)
+                        FILTER (WHERE university.short_code IS NOT NULL),
+                    ARRAY[]::text[]
+                ) AS campuses,
                 COALESCE(BOOL_OR(pm.user_id = $1), FALSE) AS is_member,
                 MAX(pr.status) AS request_status,
                 CASE WHEN p.created_by = $1 THEN
@@ -81,6 +94,8 @@ async function discoverStudyPods(req, res) {
              JOIN courses c ON c.id = p.course_id
              LEFT JOIN users u ON u.id = p.created_by
              LEFT JOIN pod_members pm ON pm.pod_id = p.id
+             LEFT JOIN users campus_member ON campus_member.id = pm.user_id
+             LEFT JOIN universities university ON university.id = campus_member.university_id
              LEFT JOIN pod_membership_requests pr ON pr.pod_id = p.id AND pr.user_id = $1
              GROUP BY p.id, c.id, u.full_name
              ORDER BY p.created_at DESC`,

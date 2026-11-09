@@ -17,11 +17,11 @@ async function getUserProfile(req, res) {
                 [userId]
             ),
             pool.query(
-                `SELECT uc.course_id, uc.status, c.course_code, c.course_title
+                `SELECT uc.course_id, uc.status, c.course_title, c.department, c.core_topics
                  FROM user_courses uc
                  JOIN courses c ON c.id = uc.course_id
                  WHERE uc.user_id = $1
-                 ORDER BY c.course_code ASC`,
+                 ORDER BY c.course_title ASC`,
                 [userId]
             ),
             pool.query(
@@ -237,7 +237,9 @@ async function updateAvailability(req, res) {
 // Get global course catalog
 async function getAllCourses(req, res) {
     try {
-        const result = await pool.query('SELECT * FROM courses ORDER BY course_code ASC');
+        const result = await pool.query(
+            'SELECT id, course_title, department, core_topics FROM courses ORDER BY course_title ASC'
+        );
         return res.json({ success: true, courses: result.rows });
     } catch (err) {
         console.error("Error fetching courses:", err);
