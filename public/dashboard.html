@@ -570,12 +570,23 @@
                 <input type="text" placeholder="Search courses or study partners...">
             </div>
             <div class="user-profile">
-                <div class="avatar" id="user-avatar-initials">UG</div>
-                <div class="user-info">
-                    <div class="name" id="user-display-name">Student Account</div>
-                    <div class="role" id="user-display-role">Campus Member</div>
+                <button id="user-menu-toggle" class="user-menu-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="user-menu">
+                    <span class="avatar" id="user-avatar-initials">UG</span>
+                    <span class="user-info">
+                        <span class="name" id="user-display-name">Loading account...</span>
+                    </span>
+                    <svg class="user-menu-chevron" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.22 7.47a.75.75 0 0 1 1.06 0L10 11.19l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 8.53a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                <div id="user-menu" class="user-menu-dropdown" hidden>
+                    <div class="user-menu-account">
+                        <strong id="user-menu-name">Student account</strong>
+                        <span id="user-menu-email"></span>
+                    </div>
+                    <button id="account-menu-settings" type="button">Account settings</button>
+                    <button class="logout-button" id="logout-button" type="button">Log out</button>
                 </div>
-                <button class="logout-button" id="logout-button" type="button">Log out</button>
             </div>
         </header>
 

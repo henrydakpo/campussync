@@ -493,6 +493,53 @@ body:has(.nav-links) header {
 .user-info .name { color: #344238; }
 .user-info .role { color: #7a8175; }
 
+.user-profile { position: relative; }
+
+.user-menu-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+
+.user-menu-toggle:hover,
+.user-menu-toggle[aria-expanded="true"] { border-color: #e8e1d5; background: #faf7ef; }
+.user-menu-toggle:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.user-menu-toggle .user-info { display: grid; }
+.user-menu-toggle .name { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-menu-chevron { width: 1rem; height: 1rem; color: #788075; transition: transform 150ms ease; }
+.user-menu-toggle[aria-expanded="true"] .user-menu-chevron { transform: rotate(180deg); }
+
+.user-menu-dropdown {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 0.45rem);
+    right: 0;
+    display: grid;
+    width: min(250px, calc(100vw - 2rem));
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border: 1px solid #e8e1d5;
+    border-radius: 14px;
+    background: #fffdf8;
+    box-shadow: 0 16px 38px rgba(37, 49, 37, 0.16);
+}
+
+.user-menu-dropdown[hidden] { display: none; }
+.user-menu-account { display: grid; gap: 0.15rem; padding: 0.65rem 0.7rem 0.75rem; border-bottom: 1px solid #eee8dd; }
+.user-menu-account strong { overflow: hidden; color: #344a39; font-size: 0.85rem; text-overflow: ellipsis; white-space: nowrap; }
+.user-menu-account span { overflow: hidden; color: #788075; font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
+.user-menu-dropdown > button { width: 100%; min-height: 40px; padding: 0.55rem 0.7rem; border: 0; border-radius: 9px; background: transparent; color: #52634f; cursor: pointer; font-size: 0.83rem; text-align: left; }
+.user-menu-dropdown > button:hover { background: #f5f1e8; }
+.user-menu-dropdown > .logout-button { color: #9c5e47; }
+.user-menu-dropdown > .logout-button:hover { background: #faf0e9; }
+
 .logout-button {
     min-height: 38px;
     padding: 0 13px;

@@ -32,13 +32,11 @@ function getAuthHeaders() {
 function updateDashboardUser(user) {
     if (!user) return;
     const name = user.fullName || user.full_name || 'Student Account';
-    const roleLabels = {
-        student_seeking_help: 'Student seeking help',
-        peer_tutor: 'Peer tutor',
-        both: 'Student and peer tutor'
-    };
     document.getElementById('user-display-name').textContent = name;
-    document.getElementById('user-display-role').textContent = roleLabels[user.role] || 'Campus Member';
+    const menuName = document.getElementById('user-menu-name');
+    const menuEmail = document.getElementById('user-menu-email');
+    if (menuName) menuName.textContent = name;
+    if (menuEmail) menuEmail.textContent = user.email || '';
     document.getElementById('user-avatar-initials').textContent = name
         .split(/\s+/)
         .filter(Boolean)
@@ -1192,7 +1190,43 @@ function viewProfile(userId) {
 
 // Run when dashboard loads
 document.addEventListener('DOMContentLoaded', () => {
+    const userMenuToggle = document.getElementById('user-menu-toggle');
+    const userMenu = document.getElementById('user-menu');
+    const closeUserMenu = () => {
+        userMenu.hidden = true;
+        userMenuToggle.setAttribute('aria-expanded', 'false');
+    };
+
+    userMenuToggle.addEventListener('click', () => {
+        userMenu.hidden = !userMenu.hidden;
+        userMenuToggle.setAttribute('aria-expanded', String(!userMenu.hidden));
+    });
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.user-profile')) closeUserMenu();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !userMenu.hidden) {
+            closeUserMenu();
+            userMenuToggle.focus();
+        }
+    });
+    document.getElementById('account-menu-settings').addEventListener('click', () => {
+        closeUserMenu();
+        history.replaceState(null, '', '#settings');
+        showDashboardView('settings');
+    });
     document.getElementById('logout-button').addEventListener('click', logout);
+
+    fetchUserProfile()
+        .then(data => {
+            currentProfileUser = data.user;
+            updateDashboardUser(data.user);
+        })
+        .catch(error => {
+            console.error('Error loading dashboard profile:', error);
+            document.getElementById('user-display-name').textContent = 'Account unavailable';
+        });
+
     const feedbackDialog = document.getElementById('feedback-dialog');
     const feedbackForm = document.getElementById('feedback-form');
     const feedbackStatus = document.getElementById('feedback-status');
