@@ -10,7 +10,8 @@ async function applyPodWorkflowMigrations() {
         path.join(__dirname, '..', 'migrations', '004_universities.sql'),
         path.join(__dirname, '..', 'migrations', '005_national_course_pods.sql'),
         path.join(__dirname, '..', 'migrations', '006_feedback.sql'),
-        path.join(__dirname, '..', 'migrations', '007_course_topics.sql')
+        path.join(__dirname, '..', 'migrations', '007_course_topics.sql'),
+        path.join(__dirname, '..', 'migrations', '008_tutor_exchange.sql')
     ];
     const client = await pool.connect();
 

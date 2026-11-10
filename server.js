@@ -15,6 +15,7 @@ const podRoutes = require('./routes/podRoutes');
 const universityRoutes = require('./routes/universityRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
+const tutorRoutes = require('./routes/tutorRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -38,6 +39,7 @@ app.use('/api/pods', podRoutes);
 app.use('/api/universities', universityRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/tutors', tutorRoutes);
 
 // Health Check Route
 app.get('/api/health', async (req, res) => {

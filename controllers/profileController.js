@@ -13,7 +13,7 @@ async function getUserProfile(req, res) {
     try {
         const [userResult, coursesResult, availabilityResult] = await Promise.all([
             pool.query(
-                'SELECT full_name, email, role FROM users WHERE id = $1',
+                'SELECT id, full_name, email, role, university_id FROM users WHERE id = $1',
                 [userId]
             ),
             pool.query(

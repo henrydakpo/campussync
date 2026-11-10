@@ -312,6 +312,87 @@
             display: none;
         }
 
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            clip-path: inset(50%);
+        }
+
+        .tutor-directory-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            background: var(--bg-card);
+        }
+
+        .tutor-directory-header p,
+        .tutor-card p,
+        .tutor-registration-dialog p {
+            margin-top: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .tutor-search {
+            width: 100%;
+            margin-bottom: 1.25rem;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+        }
+
+        .tutor-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+            padding: 1.25rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            background: var(--bg-card);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+        }
+
+        .tutor-card h2 { font-size: 1.05rem; }
+        .tutor-card h3 { font-size: 0.9rem; }
+        .tutor-card label { font-size: 0.85rem; font-weight: 600; }
+        .tutor-card select,
+        .tutor-registration-dialog select,
+        .tutor-registration-dialog textarea {
+            width: 100%;
+            margin-top: 0.35rem;
+            padding: 0.65rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background: var(--bg-card);
+            color: var(--text-main);
+        }
+
+        .tutor-registration-dialog {
+            width: min(560px, calc(100% - 2rem));
+            max-height: 90vh;
+            margin: auto;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            color: var(--text-main);
+        }
+
+        .tutor-registration-dialog::backdrop { background: rgba(15, 23, 42, 0.55); }
+        .tutor-registration-dialog form { display: grid; gap: 1rem; }
+        .tutor-registration-dialog label { display: grid; gap: 0.25rem; font-weight: 600; }
+        .tutor-registration-dialog textarea { resize: vertical; }
+        .tutor-registration-actions { display: flex; gap: 0.75rem; }
+        .tutor-registration-actions button { min-height: 42px; }
+
         .pods-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -520,6 +601,7 @@
                 <li><a href="#matches" class="active" data-dashboard-view="matches">Find Matches</a></li>
                 <li><a href="#pods" data-dashboard-view="pods">My Study Pods</a></li>
                 <li><a href="#schedule" data-dashboard-view="schedule">My Schedule</a></li>
+                <li><a href="#tutors" data-dashboard-view="tutors">Tutor Exchange</a></li>
                 <li><a href="#catalog" data-dashboard-view="catalog">AI Course Finder</a></li>
                 <li><a href="#settings" data-dashboard-view="settings">Settings</a></li>
             </ul>
@@ -613,6 +695,20 @@
                 <div id="schedule-grid" class="schedule-grid"></div>
             </section>
 
+            <section id="tutors-view" class="hidden">
+                <div class="tutor-directory-header">
+                    <div>
+                        <h2>Peer Tutor &amp; Study Partner Exchange</h2>
+                        <p>Find student tutors by course expertise and the weekly availability windows they share.</p>
+                    </div>
+                    <button id="open-tutor-registration" class="btn btn-primary" type="button">Become a tutor</button>
+                </div>
+                <label class="sr-only" for="tutor-search">Search tutors by course, topic, or university</label>
+                <input id="tutor-search" class="tutor-search" type="search" placeholder="Search by course title, topic, or university...">
+                <p id="tutor-directory-message" class="pod-message" aria-live="polite"></p>
+                <div id="tutor-directory-grid" class="pods-grid" aria-live="polite"></div>
+            </section>
+
             <section id="catalog-view" class="hidden">
                 <section class="course-match-panel" aria-labelledby="course-match-title">
                     <h2 id="course-match-title">Find a study pod for your course</h2>
@@ -688,6 +784,29 @@
             </section>
         </main>
     </div>
+
+    <dialog id="tutor-registration-dialog" class="tutor-registration-dialog" aria-labelledby="tutor-registration-title">
+        <form id="tutor-registration-form">
+            <div>
+                <h2 id="tutor-registration-title">Become a peer tutor</h2>
+                <p>Choose courses you can help with and describe your expertise. Your weekly availability comes from My Schedule.</p>
+            </div>
+            <label for="tutor-bio">About you
+                <textarea id="tutor-bio" name="tutorBio" rows="3" maxlength="1000" placeholder="Share your approach to helping other students."></textarea>
+            </label>
+            <label for="tutor-courses">Courses you can tutor
+                <select id="tutor-courses" name="courseIds" multiple required size="7"></select>
+            </label>
+            <label for="tutor-expertise">Expertise summary for each selected course
+                <textarea id="tutor-expertise" name="expertiseSummary" rows="3" maxlength="1000" required placeholder="What topics can you help learners understand?"></textarea>
+            </label>
+            <p id="tutor-registration-message" class="form-message" aria-live="polite"></p>
+            <div class="tutor-registration-actions">
+                <button class="btn btn-outline" id="close-tutor-registration" type="button">Cancel</button>
+                <button class="btn btn-primary" type="submit">Save tutor profile</button>
+            </div>
+        </form>
+    </dialog>
 
     <button id="feedback-widget-button" class="feedback-widget-button" type="button" aria-haspopup="dialog" aria-controls="feedback-dialog">
         <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">

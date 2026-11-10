@@ -975,9 +975,199 @@ const DASHBOARD_VIEWS = {
     matches: { id: 'matches-view', title: 'Compatible Study Partners' },
     pods: { id: 'pods-view', title: 'My Study Pods' },
     schedule: { id: 'schedule-view', title: 'My Schedule' },
+    tutors: { id: 'tutors-view', title: 'Tutor Exchange' },
     catalog: { id: 'catalog-view', title: 'AI Course Finder' },
     settings: { id: 'settings-view', title: 'Settings' }
 };
+
+let tutorDirectory = [];
+
+const TUTOR_SLOT_LABELS = {
+    '09_12': '9:00 AM – 12:00 PM',
+    '12_15': '12:00 PM – 3:00 PM',
+    '15_18': '3:00 PM – 6:00 PM',
+    '18_21': '6:00 PM – 9:00 PM'
+};
+
+const TUTOR_DAY_LABELS = {
+    MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday',
+    FRI: 'Friday', SAT: 'Saturday', SUN: 'Sunday'
+};
+
+function formatTutorAvailability(slotCode) {
+    const [day, start, end] = slotCode.split('_');
+    return `${TUTOR_DAY_LABELS[day] || day} (${TUTOR_SLOT_LABELS[`${start}_${end}`] || `${start}:00–${end}:00`})`;
+}
+
+function renderTutorDirectory() {
+    const grid = document.getElementById('tutor-directory-grid');
+    const message = document.getElementById('tutor-directory-message');
+    if (!grid || !message) return;
+
+    const query = document.getElementById('tutor-search').value.trim().toLocaleLowerCase();
+    const visibleTutors = tutorDirectory.filter(tutor => {
+        if (currentProfileUser && tutor.tutor_id === currentProfileUser.id) return false;
+        return [
+            tutor.full_name,
+            tutor.course_title,
+            tutor.department,
+            tutor.expertise_summary,
+            tutor.tutor_bio,
+            tutor.university_name,
+            tutor.university_code
+        ].some(value => typeof value === 'string' && value.toLocaleLowerCase().includes(query));
+    });
+
+    grid.replaceChildren();
+    if (visibleTutors.length === 0) {
+        message.textContent = tutorDirectory.length
+            ? 'No tutors match your search yet.'
+            : 'No peer tutors have listed offerings yet. You can be the first to share your expertise.';
+        return;
+    }
+
+    message.textContent = '';
+    visibleTutors.forEach(tutor => {
+        const card = document.createElement('article');
+        card.className = 'tutor-card';
+
+        const label = document.createElement('span');
+        label.className = 'course-tag';
+        label.textContent = 'Peer tutor';
+
+        const title = document.createElement('h2');
+        title.textContent = tutor.course_title;
+
+        const tutorName = document.createElement('h3');
+        tutorName.textContent = tutor.full_name;
+
+        const expertise = document.createElement('p');
+        expertise.textContent = `Expertise: ${tutor.expertise_summary}`;
+
+        card.append(label, title, tutorName, expertise);
+        if (tutor.tutor_bio) {
+            const bio = document.createElement('p');
+            bio.textContent = tutor.tutor_bio;
+            card.appendChild(bio);
+        }
+
+        const availability = Array.isArray(tutor.availability) ? tutor.availability : [];
+        const scheduleLabel = document.createElement('label');
+        scheduleLabel.textContent = availability.length ? 'Weekly schedule windows' : 'Schedule';
+        const scheduleSelect = document.createElement('select');
+        scheduleSelect.setAttribute('aria-label', `Choose a schedule window with ${tutor.full_name}`);
+        const firstOption = document.createElement('option');
+        firstOption.value = '';
+        firstOption.textContent = availability.length ? 'Select a time window' : 'No schedule windows listed';
+        firstOption.disabled = true;
+        firstOption.selected = true;
+        scheduleSelect.appendChild(firstOption);
+        availability.forEach(slotCode => {
+            const option = document.createElement('option');
+            option.value = slotCode;
+            option.textContent = formatTutorAvailability(slotCode);
+            scheduleSelect.appendChild(option);
+        });
+        scheduleSelect.disabled = availability.length === 0;
+        scheduleLabel.appendChild(scheduleSelect);
+
+        const campus = document.createElement('p');
+        campus.textContent = tutor.university_name || tutor.university_code || 'University not listed';
+        const status = document.createElement('p');
+        status.className = 'pod-message';
+        status.setAttribute('aria-live', 'polite');
+        const requestButton = document.createElement('button');
+        requestButton.className = 'btn btn-primary';
+        requestButton.type = 'button';
+        requestButton.textContent = 'Request session';
+        requestButton.disabled = availability.length === 0;
+        requestButton.addEventListener('click', async () => {
+            if (!scheduleSelect.value) {
+                status.textContent = 'Choose an available weekly window first.';
+                status.classList.add('error');
+                return;
+            }
+            requestButton.disabled = true;
+            status.classList.remove('error');
+            status.textContent = 'Sending session request...';
+            try {
+                const response = await fetch(`${API_BASE_URL}/tutors/requests`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        tutorId: tutor.tutor_id,
+                        courseId: tutor.course_id,
+                        timeSlotCode: scheduleSelect.value
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to send session request.');
+                status.textContent = data.message;
+            } catch (error) {
+                console.error('Error requesting tutor session:', error);
+                status.textContent = error.message;
+                status.classList.add('error');
+                requestButton.disabled = false;
+            }
+        });
+
+        card.append(scheduleLabel, campus, requestButton, status);
+        grid.appendChild(card);
+    });
+}
+
+async function loadTutorDirectory() {
+    const message = document.getElementById('tutor-directory-message');
+    message.textContent = 'Loading peer tutors...';
+    message.classList.remove('error');
+    try {
+        const response = await fetch(`${API_BASE_URL}/tutors`, { headers: getAuthHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to load tutor directory.');
+        tutorDirectory = data.tutors || [];
+        renderTutorDirectory();
+    } catch (error) {
+        console.error('Error loading tutor directory:', error);
+        message.textContent = error.message;
+        message.classList.add('error');
+    }
+}
+
+async function openTutorRegistration() {
+    const dialog = document.getElementById('tutor-registration-dialog');
+    const courseSelect = document.getElementById('tutor-courses');
+    const status = document.getElementById('tutor-registration-message');
+    status.textContent = 'Loading course catalog...';
+    status.classList.remove('error');
+    document.getElementById('tutor-registration-form').querySelector('[type="submit"]').disabled = true;
+    dialog.showModal();
+    try {
+        const response = await fetch(`${API_BASE_URL}/profile/courses`, { headers: getAuthHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to load courses.');
+        const existingOfferings = currentProfileUser
+            ? tutorDirectory.filter(tutor => tutor.tutor_id === currentProfileUser.id)
+            : [];
+        const selectedCourseIds = new Set(existingOfferings.map(tutor => tutor.course_id));
+        courseSelect.replaceChildren();
+        (data.courses || []).forEach(course => {
+            const option = document.createElement('option');
+            option.value = course.id;
+            option.textContent = `${course.course_title}${course.department ? ` · ${course.department}` : ''}`;
+            option.selected = selectedCourseIds.has(course.id);
+            courseSelect.appendChild(option);
+        });
+        document.getElementById('tutor-bio').value = existingOfferings[0]?.tutor_bio || '';
+        document.getElementById('tutor-expertise').value = existingOfferings[0]?.expertise_summary || '';
+        status.textContent = '';
+    } catch (error) {
+        console.error('Error loading tutor registration form:', error);
+        status.textContent = error.message;
+        status.classList.add('error');
+    } finally {
+        document.getElementById('tutor-registration-form').querySelector('[type="submit"]').disabled = false;
+    }
+}
 
 async function loadStudentSchedule() {
     const message = document.getElementById('schedule-message');
@@ -1064,9 +1254,11 @@ async function saveAccountSettings(values, messageElement) {
         if (openPodChatIds.size) initializePodChatSocket();
     }
     currentProfileUser = {
+        id: data.user.id,
         full_name: data.user.fullName,
         email: data.user.email,
-        role: data.user.role
+        role: data.user.role,
+        university_id: currentProfileUser && currentProfileUser.university_id
     };
     updateDashboardUser(data.user);
     messageElement.textContent = data.message;
@@ -1093,6 +1285,8 @@ function showDashboardView(viewName) {
         return loadDiscoverablePods('matches-pods-container', 'matches-pods-message');
     } else if (selectedView === 'schedule') {
         return loadStudentSchedule();
+    } else if (selectedView === 'tutors') {
+        return loadTutorDirectory();
     } else if (selectedView === 'catalog') {
         return loadDiscoverablePods('catalog-pods-container', 'catalog-pods-message');
     } else if (selectedView === 'settings') {
@@ -1281,6 +1475,52 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('course-match-form').addEventListener('submit', event => {
         event.preventDefault();
         findEquivalentCoursePods(event.currentTarget);
+    });
+
+    document.getElementById('tutor-search').addEventListener('input', renderTutorDirectory);
+    document.getElementById('open-tutor-registration').addEventListener('click', openTutorRegistration);
+    document.getElementById('close-tutor-registration').addEventListener('click', () => {
+        document.getElementById('tutor-registration-dialog').close();
+    });
+    document.getElementById('tutor-registration-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const message = document.getElementById('tutor-registration-message');
+        const submit = form.querySelector('[type="submit"]');
+        const courseIds = [...document.getElementById('tutor-courses').selectedOptions].map(option => option.value);
+        if (courseIds.length === 0) {
+            message.textContent = 'Select at least one course you can tutor.';
+            message.classList.add('error');
+            return;
+        }
+
+        message.textContent = 'Saving your tutor profile...';
+        message.classList.remove('error');
+        submit.disabled = true;
+        try {
+            const response = await fetch(`${API_BASE_URL}/tutors/profile`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    tutorBio: document.getElementById('tutor-bio').value.trim(),
+                    offerings: courseIds.map(courseId => ({
+                        courseId,
+                        expertiseSummary: document.getElementById('tutor-expertise').value.trim()
+                    }))
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to save tutor profile.');
+            message.textContent = data.message;
+            await loadTutorDirectory();
+            window.setTimeout(() => document.getElementById('tutor-registration-dialog').close(), 900);
+        } catch (error) {
+            console.error('Error saving tutor profile:', error);
+            message.textContent = error.message;
+            message.classList.add('error');
+        } finally {
+            submit.disabled = false;
+        }
     });
 
     document.getElementById('pods-container').addEventListener('submit', async event => {
