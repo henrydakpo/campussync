@@ -191,6 +191,16 @@ async function createPodForCourse(courseId) {
 
         const data = await response.json();
 
+        if (response.status === 409 && data.code === 'DUPLICATE_POD_EXISTS') {
+            const existingPod = data.existingPod;
+            if (existingPod && window.confirm(
+                `"${existingPod.pod_name}" already exists! Would you like to request to join it instead?`
+            )) {
+                await joinStudyPod(existingPod.id, null, courseId);
+            }
+            return;
+        }
+
         if (!response.ok) {
             throw new Error(data.error || 'Failed to create study pod');
         }

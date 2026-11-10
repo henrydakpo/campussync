@@ -136,6 +136,21 @@ async function createStudyPod(req, res) {
     try {
         await client.query('BEGIN');
 
+        const profile = await client.query(
+            'SELECT university_id FROM users WHERE id = $1',
+            [userId]
+        );
+        if (profile.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: "Account not found." });
+        }
+        if (!profile.rows[0].university_id) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({
+                error: "Please complete your university profile before creating a study pod."
+            });
+        }
+
         const enrollment = await client.query(
             'SELECT 1 FROM user_courses WHERE user_id = $1 AND course_id = $2',
             [userId, courseId]
@@ -143,6 +158,39 @@ async function createStudyPod(req, res) {
         if (enrollment.rows.length === 0) {
             await client.query('ROLLBACK');
             return res.status(403).json({ error: "You must add this course to your profile before creating a pod for it." });
+        }
+
+        const universityId = profile.rows[0].university_id;
+        await client.query(
+            'SELECT pg_advisory_xact_lock(hashtext($1))',
+            [`campus-pod:${universityId}:${courseId}`]
+        );
+
+        const existingPod = await client.query(
+            `SELECT pod.id, pod.pod_name
+             FROM study_pods pod
+             JOIN users creator ON creator.id = pod.created_by
+             WHERE pod.course_id = $1
+               AND creator.university_id = $2
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM national_course_pods national
+                   WHERE national.pod_id = pod.id
+               )
+             ORDER BY pod.created_at ASC
+             LIMIT 1`,
+            [courseId, universityId]
+        );
+        if (existingPod.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                code: 'DUPLICATE_POD_EXISTS',
+                existingPodId: existingPod.rows[0].id,
+                existingPod: existingPod.rows[0],
+                error: "An active study pod for this course already exists!",
+                message: "An active pod for this course already exists!"
+            });
         }
 
         const podResult = await client.query(
